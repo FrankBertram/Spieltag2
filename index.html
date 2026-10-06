@@ -1,0 +1,3111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" type="image/png" href="Skat.png">
+    <link rel="apple-touch-icon" href="Skat.png">
+    <title>Mitspieler und Ergebnisse (2 Serien)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0px;
+            flex-wrap: wrap;
+        }
+        .header img {
+            height: 50px;
+            width: auto;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+		.footer {
+			position: fixed;
+			right: 20px;
+			bottom: 10px;
+			font-size: 12px;
+			color: #666;
+		}        
+        .container { display: flex; gap: 10px; flex-wrap: wrap; }
+        .left, .middle, .right { background: white; padding: 10px 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .left { flex: 0 0 180px; }
+        .middle { flex: 0 0 200px; }
+        .right { flex: 1; min-width: 400px; }
+        input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        button { background: #4CAF50; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-size: 16px; }
+        button:hover { background: #45a049; }
+        button:disabled { background: #aaa; cursor: not-allowed; }
+        button.add-player { background: #2196F3; margin-top: 20px; }
+        button.add-player:hover { background: #0b7dda; }
+        button.edit-btn { background: #ff9800; padding: 5px 8px; font-size: 12px; width: auto; margin: 0 5px; }
+        button.edit-btn:hover { background: #e68a00; }
+        button.export-btn { background: #2196F3; margin-top: 20px; }
+        button.export-btn:hover { background: #0b7dda; }
+        .checkbox-list { max-height: 1000px; overflow-y: auto; margin: 15px 0; }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 12px;
+            transform: scale(1.3);
+        }
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+            word-wrap: break-word;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; vertical-align: middle; }
+        th { background: #f2f2f2; }
+        th:nth-child(1), td:nth-child(1) { width: 40px; text-align: right; }
+        th:nth-child(2), td:nth-child(2) { width: 180px;  text-align: left; }
+        th:nth-child(3), td:nth-child(3) { text-align: right; }
+        th:nth-child(4), td:nth-child(4) { width: 20px; text-align: right; }
+        th:nth-child(5), td:nth-child(5) { text-align: right; }
+        th:nth-child(6), td:nth-child(6) { text-align: right; }
+        .edit-cell { display: flex; justify-content: flex-end; align-items: center; gap: 5px; }
+        #message { color: green; margin-top: 10px; font-weight: bold; }
+        .round-info { background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        #addPlayerSection { display: none; width: 160px; margin-top: 10px; }
+        #exportSection { display: none; margin-top: 20px; }
+		#currentResult {
+			width: 100%;       /* füllt Inhaltsbereich von .middle, identisch zu Info-Box und Button */
+			box-sizing: border-box;
+			display: block;
+		}
+
+		#playerSelect {
+			width: 100%;       /* füllt Inhaltsbereich von .middle, identisch zu Info-Box und Button */
+			box-sizing: border-box;
+			display: block;
+		}
+		#fileInput {  /* File-Input-Container */
+			margin-bottom: 5px;  /* Mehr Abstand unterhalb */
+			padding: 0px;
+		}
+		
+		.container {
+			margin-top: 5px;  /* Abstand oberhalb Panels */
+		}		
+		
+.file-block {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 0px;
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+
+.header {
+    position: relative;  /* Für absolute Positionierung */
+    padding-right: 450px;  /* Platz für File-Block */
+    min-height: 50px;
+}		
+		.thick-line {border-top: 3px solid #333 !important;}
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <script>
+        window.SKAT_LOGO_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC0AAAAsCAYAAADxRjE/AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAltSURBVGhDrZmJc1RVFsbzH7BlobN09kA2IjtIQJTEAYtlAFFAhIBCAAPMsDhkcMygsigkMwyQAqUsxnEBFNQqp8SZYrRkKTAQwBoYihlICBEC4XW/Tnc66S3fnHNzX+e97ixN0l/VV9Xd7977fn3evecuLwJhVmtrK+bNmYMEUyz+evgwfD6fvBI+hQ26ra0Nzc3NmD1zFtKSkpGamCTADx18Hx6PR5YKj8ICzcA2mw3Tp04TsHrHDzZh/969cLlcsnTfFRZoi8WCXxUU+kFTzIl+8/e4mMGo2LUbLS0tskbf1GfoBw0NmDJ5sh84lUAz0zMwND0dQ9PSDeA7t2+Hk7pQX9Un6Pr6ekyekO8HY48ZMRJHjxzFubNnsWPbNgGuXWPwt8r+CLvdLlvonXoNXVtbg/xx4w3ASfEJuE+R14v7s3adHRsdgy2lpbCpNlni8dUr6Js3b2L8qNEGYP6cGBcvS7SLByj3Y45wIPim9ethURRZ8vH02NDXr13D6OEjDBDJCWZkDxmKvJxcQ3rjHF19qRojhuX506BmBl+3Zg0aHz6UpUNXyNA8RVy8fFkA6G/OZuB33n4LVT9VBUWvuroap388jaLFS4LATVHRWLWiOKhL9aTQoOkxO8+cw6zsXJh1N2UzCA+uUDRu9BhDXXYcRfzQ0lfhuVsvS/WsnqEJ2P3Pf8FqHoKf49IwxZxsAOe+XFtTE9J0XbL6NUO008jLElPQGJkA+/wl8N2ulSW7V/fQBOL++0lY49NhIdvINxLSMTXRCH5gf6UB+m5dHbxeL5xOp/wFcFCaK3j6GQGdQnXSycUE7KD2uG3LIAKf+xK8N/8ra3StrqHppq4TX8NK0RWNSqvkW3SjGRTxBAnNETtx/AQuV1/GhfMX8Nu168S0XbG7HJcuXsTFqir6vBvm2Dg/8DpzKpwasLRCEW+aOQ/e6/+REJ2rc2gG/uwYLLGphkY1c8Rr6YZzCTxegkcNGISxI0chPSUV7+7YIbrVyLwnyHnIy86h6wMFcAZ5Y2IqWgKA/Y40wzZtNrxXfpYwwQqGdnvQevhjWAanwBJlhjIwDpaB8bBwxMkKfebf1KhE1NONFxB4nATn1MfRPHrkCD6iZemm9RtEnxcWwMnYQsCtAaCKbNv/G93XVjAdnovVEsooIzQ90paDHxJwMpSYJKhPT0PTgiWwzXwBSnKWsDprHpoWFtG1qbDS42wg8CU6cPagfv0R2W+AyMX8nYGHUl/eSsAuhtTg2BzZVeuM0GwCVydPhefceQnXoQ5oWry37K2EJTpJNKC++DJcF6rQ5mgW6cixYzd5Fzz1v4jfXOd/gjpvEazUhR7QTZYTuEkHrpmBMwl4JwG7qZwBmD1sLLxWFercBbCY6Onqr0UnwpZfAM8PpyVku9qhaZS37PqzKCQKZwyDu/aOuNSd3HfuihtxdnlEXm1OMYAzcBYBV9Cg89B1A3BCBh5R3eajX4i2XFeuwpI1IngcURDVcZMp7Z4S5VgRbQ4HnO+8Kx6H1pha8Jy83LOUnFGijnaT9RKcgXOoD++nCAcB83caE02lZbKVdjUf/huU1OzgiHNXHZVP6fdbUS7CuWVrBzCbAKxPPSsu9ijKEJbM4QZozixvEPhYivAH5rROI2xJy4H9zbfh62Qb5jhwCJZREzvKa2bw4ePhoicTYTHR49A/Em40JQue2zWyma7lqbkjIqZvvInM6XBKUgpAn4P6MLWvpOXC9cs92YpR3jbaCVHmMNSRVvqbYJ/1AiJaKz+ANYUeiR6cPtuWv4a2bqZmsS9cttIw6hn4RnwaXqGZLpu6R3lCcHoTJnCu6214IFtrl8/tFk+Ax1RQHcpUNspY7lPftw/E1g8/gpX+vb8vcbQJ3LF9F9poogmUj4DtW7dDoanXIicJO/laQhoWURaJIWAeiInk7TQIW7Qb66z0j4WtqBhtug2vfdt7ItUGpj++j61whj/9+VNe68dHYB2SR7ASnCoqBG/f/Cbc9R2P0l1bh6bXt0DhP8h/jsoy8FWK8HwaeBqwZgYvoz7ulAB+czehicpevke02/LtP8T9DGXIyqB4ND03B56qjonGMLm4jp2AymlHiziDxyTDNn8xnJ99LmybuxCPdAPXQb5EEZ7dRZ5m8+KqlMCbZR2/GTw5E67/3YJlUmFwhOlPNVEfDpzSDdAs99ffQOU0pk87PI3njW03T+vydwY+T55BEdYD815xcGSUYRnKEd9A4PxU/O2yOStQIALTnDIgDk3PL4L3WvDiKQia5aZHpeaNE9O5vyFei7Dld47aGYrwVIpwrATTzAukTz/5BJH9BwSBl1B5HrDacldYn3LJyoBY2Bcu7XKZ2ik0y33qB6gjJxjBpRn4ewIuoAjr1xxirUyLozOnz4g2DlRWCnDtuga+giJupQFsAJfmAWqnAertJuV2Cc3y/HgW6phJBnAG/o6AnyJgbVmqAfPW6buTJ2VtXn+58N7OnYgZGBkEzosszuF6cKWfCY4VJfDV3ZUtdK5uoVme81VQn3xGgHMG+IaA8wlY2wBo5k3qiePHZa0O8cFM6eu/E0tWffkk8gICfygjzhOHo2Q9fF1MOnr1CM3yVF+BbWIhjpoSMY6AAze33CX4UKarfWJjYyOenTLF0L/ZDP48tVdDaa15w2b4GkI7TggJmuX89zUsKiyEKSBiqQTCZ3d8zNudrl69KjYJ+rq8TYuhLrX75SL4Gh/Jkj0rZGhaEuD6jRuYMW2a4VFz9Ph4zCAu3IkCuwhvEl4pWora+tCPD1ghQ2u6fesWZs+caQDISEnD/fv3ZYl2BXaVL459LrqRHzgqBquKi9EQUC8UPTY0q66uDvPmzPWDM8zEJyeg7I0/YE/Fn/Dr6TPQQhuLlStWYO+ev2B18Uo8kZPbAUwRXluyhvr64x+JsXoFzbp37x5eenG+H5xnwayMIcjNzELlvn2izKQJ+cjNyhZPQuvPDLyRNry9PXxk9RqaxYeHRYsWw2yK9Uec/wTn5orycpSsWm0YfLHR0fj95lKoqipb6J36BM1SKGLLl70qjnk1uOyhmSLqfDCp/cbHvVvLyvp8oM7qMzSLXxJxvzVLcI64Zv7OXYLfCvSUFkNVWKBZHMHfrFlriLgW4fIwviRihQ2axQeOmzZuFIOSo8yv4/bRTOmmbVQ4FVZoFi+S+J0Kr0XeP3Aw7C8+WRG8QQ23+Zj3qy+/pI1x59f75jb8H+WNAKzYPKOWAAAAAElFTkSuQmCC';
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('img[data-skat-logo]').forEach(img => {
+                img.src = window.SKAT_LOGO_DATA;
+            });
+        });
+    </script>
+
+    <div class="header">
+        <img data-skat-logo alt="Skat-Logo">
+        <h3>1. Sintherner Skatclub – 2 Serien<span id="aktuelles-datum"></span></h3>
+        <div id="fileSection" class="file-block" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <button onclick="showGesamtliste()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="2" y1="7" x2="12" y2="7"/><line x1="2" y1="10.5" x2="12" y2="10.5"/></svg>
+                Gesamt
+            </button>
+            <button onclick="showTageswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/><rect x="5.5" y="8" width="3" height="2.5" fill="white" stroke="none"/></svg>
+                Spieltag
+            </button>
+            <button onclick="showMonatswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.2" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="6" x2="5" y2="12"/><line x1="9" y1="6" x2="9" y2="12"/><line x1="2" y1="9" x2="12" y2="9"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/></svg>
+                Monat
+            </button>
+            <button onclick="showMitspielerVerwaltung()" style="background:#00897b;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><circle cx="7" cy="5" r="2.5"/><path d="M2.5 12 C2.5 9.5 4.5 8.5 7 8.5 C9.5 8.5 11.5 9.5 11.5 12"/></svg>
+                Mitspieler
+            </button>
+            <button onclick="sendSpieltagEmail()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3.5" width="10" height="7" rx="1"/><polyline points="2.5,4 7,7.5 11.5,4"/></svg>
+                E-Mail
+            </button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="left">
+            <h3>Mitspieler wählen</h3>
+            <div style="display:flex;gap:5px;margin-bottom:5px;">
+                <button onclick="alleWaehlen(true)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Alle</button>
+                <button onclick="alleWaehlen(false)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Keine</button>
+                <button onclick="loadMitspielerFromFirebase(this)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;background:#00897b;color:white;border:none;border-radius:4px;cursor:pointer;">Aus Firebase laden</button>
+                <button onclick="auslosungStarten()" style="font-size:11px;padding:3px 6px;margin:0;width:auto;background:#6a1b9a;color:white;border:none;border-radius:4px;cursor:pointer;">Auslosung</button>
+            </div>
+            <div class="checkbox-list" id="playerCheckboxes"></div>
+            
+            <button class="add-player" onclick="showAddPlayer()">Gast hinzufügen</button>
+            
+            <div id="addPlayerSection">
+                <input type="text" id="newPlayerName" placeholder="Name eingeben">
+                <button onclick="addNewPlayer()">Hinzufügen</button>
+            </div>
+        </div>
+        
+        <div class="middle">
+            <h3 id="roundTitle">S1: Ergebnis eintragen</h3>
+            <div id="importSection" style="display:none;flex-direction:column;gap:6px;margin:0 0 10px 0;">
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serien laden</button>
+                    <input type="date" id="importDate" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <button id="saveSerie1Btn" onclick="saveSerieToFirestore(1)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 1 → T0</button>
+                    <button id="saveSerie2Btn" onclick="saveSerieToFirestore(2)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 2 → T0</button>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <select id="spieltagSelect" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
+                        <option value="">-- Spieltag --</option>
+                    </select>
+                    <button id="signInBtn" onclick="signInGoogle()" style="background:#424242;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Anmelden</button>
+                    <button id="signOutBtn" onclick="signOutGoogle()" style="display:none;background:#9e9e9e;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Abmelden</button>
+                    <button id="copyUidBtn" onclick="copyUid()" style="display:none;background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">UID kopieren</button>
+                    <span id="authStatus" style="font-size:12px;color:#888;">nicht angemeldet</span>
+                </div>
+            </div>
+            <div id="uploadSection" style="display:none;margin:0 0 10px 0;padding:6px;background:#f5f5f5;border-radius:4px;">
+                <label for="csvUpload" style="font-size:12px;color:#333;display:block;margin-bottom:3px;">CSV nachladen (Datum;Serie;Name;Punkte):</label>
+                <input type="file" id="csvUpload" accept=".csv,.txt" style="font-size:12px;">
+            </div>
+            <div class="round-info" id="roundInfo">
+                Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.
+            </div>
+            <p id="progress" style="font-size:13px;color:#555;margin:5px 0;white-space:pre-line;"></p>
+            
+            <select id="playerSelect">
+                <option value="">-- Spieler wählen --</option>
+            </select>
+            
+            <input type="number" inputmode="decimal" id="currentResult" placeholder="Ergebnis eintragen">
+            
+            <button onclick="saveCurrentResult()">Speichern und nächsten wählen</button>
+            
+            <button id="startRound2" onclick="startRound2()" style="display:none; background:#ff9800;">
+                Serie 2 starten
+            </button>
+
+            <button id="saveSetzlisteBtn" onclick="saveSetzlisteSerie2(this)" style="display:none; background:#1565c0;">
+                Setzliste für Serie 2 speichern
+            </button>
+
+            <p id="message"></p>
+
+            <div id="exportSection">
+                <button class="export-btn" onclick="exportToCSV()">Endstand als CSV exportieren</button>
+            </div>
+        </div>
+        
+        <div class="right">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <h3 id="rankingTitle" style="margin:0;">Zwischenstand nach Serie 1</h3>
+                <button onclick="neustart()" style="background:#e53935;color:white;padding:4px 12px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;white-space:nowrap;width:auto;margin:0;">Neustart</button>
+            </div>
+            <table id="rankingTable">
+                <thead>
+                    <tr>
+                        <th>Rang</th>
+                        <th>Name</th>
+                        <th>Serie 1</th>
+			<th>T.</th>
+                        <th>Serie 2</th>
+                        <th>Gesamt</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let allPlayers = [];
+        let selectedPlayers = [];
+        let results = {};
+        // imported[name] = { res1: bool, res2: bool } – true wenn aus Firestore importiert
+        let imported = {};
+        let currentRound = 1;
+        let editingPlayer = null;
+        let editingSeries = null;
+        let guests = new Set();
+        // Nur für den Sonderspieltag temporär ergänzte reine Preisskat-Spieler.
+        // Werden NICHT in localStorage persistiert (kein Geister-Spieler nach Reload).
+        let preisskatTempPlayers = new Set();
+
+        // Zusatztermine außerhalb der 24 regulären Spieltage.
+        // Werden bewusst NICHT in Monats- und Jahreswertung berücksichtigt,
+        // sind aber im Haupt-Dropdown wähl-/eintragbar und in der Tageswertung sichtbar.
+        const EXTRA_SPIELTAGE = [
+            { iso: '2026-07-11', dd: '11', mm: '07', yyyy: '2026', label: '11.07',
+              name: '43. Pulheimer Stadtmeisterschaft', extra: true }
+        ];
+
+	const datum = new Date();
+        const datumText = datum.toLocaleDateString('de-DE', {
+	        day: '2-digit',
+        	month: '2-digit',
+	        year: 'numeric'
+	});
+      	document.getElementById('aktuelles-datum').textContent = ' – ' + datumText;
+
+        // Firestore-Import-Button nur auf freigeschalteten Geräten zeigen.
+        // Freischalten: Seite einmal mit ?firestore=1 aufrufen. Abschalten: ?firestore=0.
+        (function() {
+            const params = new URLSearchParams(location.search);
+            if (params.get('firestore') === '1') {
+                localStorage.setItem('skat_show_firestore', '1');
+            } else if (params.get('firestore') === '0') {
+                localStorage.removeItem('skat_show_firestore');
+            }
+            if (localStorage.getItem('skat_show_firestore') === '1') {
+                const sec = document.getElementById('importSection');
+                if (sec) sec.style.display = 'flex';
+                const up = document.getElementById('uploadSection');
+                if (up) up.style.display = '';
+            }
+            // DatePicker auf heute vorbelegen
+            const dateInput = document.getElementById('importDate');
+            if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+
+            // Spieltag-Dropdown füllen: alle 2 Wochen ab 13.01.2026 (Dienstag = Spieltag 1)
+            const spieltagSelect = document.getElementById('spieltagSelect');
+            if (spieltagSelect) {
+                const start = new Date(Date.UTC(2026, 0, 13));
+                const todayIso = dateInput ? dateInput.value : '';
+                for (let i = 0; i < 24; i++) {
+                    const d = new Date(start);
+                    d.setUTCDate(d.getUTCDate() + i * 14);
+                    const iso = d.toISOString().slice(0, 10);
+                    const dd = String(d.getUTCDate()).padStart(2, '0');
+                    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getUTCFullYear();
+                    const opt = document.createElement('option');
+                    opt.value = iso;
+                    opt.textContent = `Spieltag ${i + 1} (${dd}.${mm}.${yyyy})`;
+                    if (iso === todayIso) opt.selected = true;
+                    spieltagSelect.appendChild(opt);
+                }
+                // Zusatztermine (z. B. Stadtmeisterschaft) ans Ende hängen
+                EXTRA_SPIELTAGE.forEach(ex => {
+                    const opt = document.createElement('option');
+                    opt.value = ex.iso;
+                    opt.textContent = `${ex.name} (${ex.dd}.${ex.mm}.${ex.yyyy})`;
+                    if (ex.iso === todayIso) opt.selected = true;
+                    spieltagSelect.appendChild(opt);
+                });
+                spieltagSelect.addEventListener('change', function() {
+                    if (this.value && dateInput) dateInput.value = this.value;
+                    // Beim Sonderspieltag nur Preisskat-Teilnehmer in der Auswahlliste zeigen
+                    if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
+                });
+            }
+        })();
+
+        document.getElementById('csvUpload').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                if (typeof window.uploadCsvToFirestore === 'function') {
+                    window.uploadCsvToFirestore(ev.target.result);
+                } else {
+                    alert('Firestore-Modul noch nicht geladen.');
+                }
+                e.target.value = ''; // reset damit selbe Datei nochmal wählbar ist
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        function saveState() {
+            // Temporär ergänzte Preisskat-Spieler nicht persistieren
+            const persistPlayers = allPlayers.filter(p => !preisskatTempPlayers.has(p));
+            const checked = persistPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+            const persistResults = {};
+            const persistImported = {};
+            persistPlayers.forEach(p => {
+                if (results[p]) persistResults[p] = results[p];
+                if (imported[p]) persistImported[p] = imported[p];
+            });
+            localStorage.setItem('skat_state', JSON.stringify({
+                allPlayers: persistPlayers, selectedPlayers: checked,
+                results: persistResults, imported: persistImported,
+                currentRound, guests: [...guests]
+            }));
+        }
+
+        function restoreState() {
+            const raw = localStorage.getItem('skat_state');
+            if (!raw) return false;
+            try {
+                const state = JSON.parse(raw);
+                if (!state.allPlayers || state.allPlayers.length === 0) return false;
+                state.allPlayers.forEach(name => addPlayerToList(name));
+                // Checkboxen gemäß gespeichertem Zustand setzen
+                const checkedSet = new Set(state.selectedPlayers || []);
+                allPlayers.forEach(p => {
+                    const cb = document.getElementById('cb_' + p);
+                    if (cb) cb.checked = checkedSet.has(p);
+                });
+                // Ergebnisse wiederherstellen
+                Object.keys(state.results || {}).forEach(name => {
+                    if (results[name]) {
+                        results[name].res1 = state.results[name].res1;
+                        results[name].res2 = state.results[name].res2;
+                    }
+                });
+                // Import-Markierungen wiederherstellen
+                Object.keys(state.imported || {}).forEach(name => {
+                    if (imported[name]) {
+                        imported[name].res1 = !!state.imported[name].res1;
+                        imported[name].res2 = !!state.imported[name].res2;
+                    }
+                });
+                currentRound = state.currentRound || 1;
+                guests = new Set(state.guests || []);
+                selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+                updatePlayerSelect(true);
+                if (currentRound === 2) {
+                    startRound2();
+                } else {
+                    setupRound1();
+                }
+                updateRanking();
+                checkRoundComplete();
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        if (!restoreState()) {
+            fetch('Mitspieler.txt')
+                .then(r => r.ok ? r.text() : Promise.reject())
+                .then(text => loadPlayers(text))
+                .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));
+        }
+
+
+        const fileInputEl = document.getElementById('fileInput');
+        if (fileInputEl) {
+            fileInputEl.addEventListener('change', e => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = ev => loadPlayers(ev.target.result);
+                    reader.readAsText(file);
+                }
+            });
+        }
+
+
+
+
+function loadPlayers(text) {
+    // 1. Alles vorherige löschen
+    allPlayers = [];
+    selectedPlayers = [];
+    results = {};
+    imported = {};
+    guests = new Set();
+
+    // Checkbox-Container leeren
+    const container = document.getElementById('playerCheckboxes');
+    container.innerHTML = '';
+    
+    // Tabelle und Status zurücksetzen
+    document.getElementById('rankingTable').querySelector('tbody').innerHTML = '';
+    document.getElementById('message').textContent = '';
+    document.getElementById('exportSection').style.display = 'none';
+    document.getElementById('startRound2').style.display = 'none';
+    
+    // 2. Neue Namen laden
+    const names = text.trim().split('\n').map(n => n.trim()).filter(n => n);
+    names.forEach(name => addPlayerToList(name));
+    
+    // 3. Auswahl und Anzeige aktualisieren
+    updateSelectedPlayers(); // setzt selectedPlayers neu und baut Dropdown + Tabelle
+    // Falls der Sonderspieltag aktiv ist: Nicht-Preisskat-Spieler ausblenden
+    if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
+    saveState();
+}
+
+        function addPlayerToList(name) {
+            name = name.trim();
+            if (!name) return;
+            const normalized = name.toLowerCase();
+            if (allPlayers.some(p => p.toLowerCase() === normalized)) return;
+
+            allPlayers.push(name);
+            results[name] = { res1: '', res2: '' };
+            imported[name] = { res1: false, res2: false };
+
+            const container = document.getElementById('playerCheckboxes');
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.id = 'cb_' + name;
+            cb.checked = true;
+            cb.onchange = updateSelectedPlayers;
+
+            const label = document.createElement('label');
+            label.htmlFor = cb.id;
+            label.textContent = name;
+
+            div.appendChild(cb);
+            div.appendChild(label);
+            container.appendChild(div);
+        }
+
+        function alleWaehlen(checked) {
+            allPlayers.forEach(p => {
+                const cb = document.getElementById('cb_' + p);
+                if (!cb) return;
+                const item = cb.closest('.checkbox-item');
+                const hidden = item && item.style.display === 'none';
+                cb.checked = checked && !guests.has(p) && !hidden;
+            });
+            updateSelectedPlayers();
+        }
+
+        // Markierte Spieler an die Turnierseite übergeben und dorthin wechseln.
+        function auslosungStarten() {
+            const marked = allPlayers.filter(p => {
+                const cb = document.getElementById('cb_' + p);
+                return cb && cb.checked;
+            });
+            if (marked.length === 0) {
+                alert('Keine Spieler markiert – bitte zuerst Mitspieler auswählen.');
+                return;
+            }
+            try {
+                localStorage.setItem('turnier_teilnehmer', marked.join('\n'));
+            } catch (e) {
+                console.warn('Teilnehmer konnten nicht übergeben werden:', e);
+            }
+            window.location.href = 'turnier.html';
+        }
+
+        // Namens-Schlüssel für den Abgleich Firestore <-> Haupt-Spielerliste.
+        function preisskatKey(name) {
+            return String(name == null ? '' : name).trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        // Beim Zurückschalten vom Sonderspieltag: nur für Preisskat ergänzte Spieler wieder entfernen.
+        function removePreisskatTempPlayers() {
+            const container = document.getElementById('playerCheckboxes');
+            if (!container) return false;
+            let removed = false;
+            container.querySelectorAll('.checkbox-item[data-preisskat-temp]').forEach(item => {
+                const cb = item.querySelector('input[type=checkbox]');
+                const name = cb ? (cb.id || '').replace(/^cb_/, '') : '';
+                if (name) {
+                    allPlayers = allPlayers.filter(p => p !== name);
+                    delete results[name];
+                    delete imported[name];
+                    guests.delete(name);
+                    preisskatTempPlayers.delete(name);
+                    removed = true;
+                }
+                item.remove();
+            });
+            return removed;
+        }
+
+        // Beim Sonderspieltag: nur Preisskat-Teilnehmer zeigen. Fehlende (reine Preisskat-
+        // Spieler, die nicht in der lokalen Liste stehen) werden temporär ergänzt.
+        window.applyPreisskatFilter = function() {
+            const sel = document.getElementById('spieltagSelect');
+            let isExtra = !!(sel && EXTRA_SPIELTAGE.some(ex => ex.iso === sel.value));
+            // Daten noch nicht sicher geladen? Nachladen anstoßen und bis dahin alle zeigen.
+            if (isExtra && !window.__preisskatLoaded) {
+                if (typeof window.loadPreisskatNames === 'function') window.loadPreisskatNames();
+                isExtra = false;
+            }
+            const container = document.getElementById('playerCheckboxes');
+            if (!container) return;
+
+            const preisNames = window.__preisskatNames || [];
+            const preisKeys = new Set(preisNames.map(preisskatKey));
+            let changed = false;
+
+            if (isExtra) {
+                // Fehlende Preisskat-Spieler temporär in die Auswahlliste aufnehmen
+                preisNames.forEach(origName => {
+                    const key = preisskatKey(origName);
+                    const exists = allPlayers.some(p => preisskatKey(p) === key);
+                    if (!exists) {
+                        addPlayerToList(origName);
+                        preisskatTempPlayers.add(origName);
+                        const cb = document.getElementById('cb_' + origName);
+                        const item = cb && cb.closest('.checkbox-item');
+                        if (item) item.dataset.preisskatTemp = '1';
+                        changed = true;
+                    }
+                });
+            } else {
+                // Regulärer Spieltag: temporär ergänzte Preisskat-Spieler wieder entfernen
+                if (removePreisskatTempPlayers()) changed = true;
+            }
+
+            container.querySelectorAll('.checkbox-item').forEach(item => {
+                const cb = item.querySelector('input[type=checkbox]');
+                if (!cb) return;
+                const name = (cb.id || '').replace(/^cb_/, '');
+                const allowed = !isExtra || preisKeys.has(preisskatKey(name));
+                if (!allowed) {
+                    item.style.display = 'none';
+                    if (cb.checked) { cb.checked = false; changed = true; }
+                } else {
+                    item.style.display = '';
+                }
+            });
+
+            if (changed) updateSelectedPlayers();
+        };
+
+        function showAddPlayer() {
+            document.getElementById('addPlayerSection').style.display = 'block';
+            document.getElementById('newPlayerName').focus();
+        }
+
+        function addNewPlayer() {
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (!name) {
+                alert('Bitte einen Namen eingeben!');
+                return;
+            }
+
+            addPlayerToList(name);
+            guests.add(name);
+            input.value = '';
+            document.getElementById('addPlayerSection').style.display = 'none';
+
+            updateSelectedPlayers();
+            updateRanking();
+            document.getElementById('message').textContent = `${name} wurde hinzugefügt und ist ausgewählt!`;
+        }
+
+        document.getElementById('newPlayerName').addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addNewPlayer();
+            }
+        });
+
+        function updateSelectedPlayers() {
+            selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+            resetGameIfNeeded();
+            updatePlayerSelect();
+            updateRanking();
+            saveState();
+        }
+
+        function resetGameIfNeeded() {
+            // Nur UI aktualisieren, NICHT currentRound oder Ergebnisse zurücksetzen
+            editingPlayer = null;
+            editingSeries = null;
+            if (currentRound === 1) {
+                setupRound1();
+            } else {
+                const count = selectedPlayers.length;
+                document.getElementById('rankingTitle').textContent = 'Endstand nach beiden Serien ('+count+' Mitspieler)';
+                updatePlayerSelect(true);
+                updateRanking();
+                checkRoundComplete();
+            }
+        }
+
+        // Dropdown-Logik: In Serie 2 auch noch fehlende Serie-1-Werte eintragbar machen.
+        // Option-Value-Format: "Name__S1" oder "Name__S2"
+        function updatePlayerSelect(preselectNext = false) {
+            const select = document.getElementById('playerSelect');
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Spieler wählen --</option>';
+
+            let candidates = [];
+
+            selectedPlayers.forEach(player => {
+                const res1Empty = results[player].res1 === '';
+                const res2Empty = results[player].res2 === '';
+                const isEditing = editingPlayer === player;
+                const serie1Score = parseFloat(results[player].res1) || 0;
+
+                // Serie-1-Eintrag: fehlt res1, oder wird gerade Serie 1 korrigiert
+                if (res1Empty || (isEditing && editingSeries === 1)) {
+                    candidates.push({ name: player, serie: 1, score: serie1Score });
+                }
+
+                // Serie-2-Eintrag: nur in Serie-2-Modus, fehlt res2 oder Serie-2-Korrektur
+                if (currentRound === 2 && (res2Empty || (isEditing && editingSeries === 2))) {
+                    candidates.push({ name: player, serie: 2, score: serie1Score });
+                }
+                // Edge-Case: Serie-2-Korrektur während Serie-1-Modus (selten)
+                if (currentRound === 1 && isEditing && editingSeries === 2) {
+                    candidates.push({ name: player, serie: 2, score: serie1Score });
+                }
+            });
+
+            if (currentRound === 2) {
+                // Fehlende Serie 1 zuerst (alphabetisch), dann Serie 2 nach Serie-1-Punkten absteigend
+                candidates.sort((a, b) => {
+                    if (a.serie !== b.serie) return a.serie - b.serie;
+                    if (a.serie === 1) return a.name.localeCompare(b.name);
+                    return b.score - a.score;
+                });
+            } else {
+                candidates.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            const hasSerie1 = candidates.some(c => c.serie === 1);
+            const hasSerie2 = candidates.some(c => c.serie === 2);
+            const mixed = hasSerie1 && hasSerie2;
+
+            candidates.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = `${c.name}__S${c.serie}`;
+                opt.textContent = (mixed || c.serie !== currentRound) ? `${c.name} (S${c.serie})` : c.name;
+                select.appendChild(opt);
+            });
+
+            if (preselectNext && candidates.length > 0) {
+                let nextValue = null;
+                const idx = candidates.findIndex(c => `${c.name}__S${c.serie}` === currentValue);
+                if (idx >= 0) {
+                    const next = candidates[idx + 1] || candidates[0];
+                    nextValue = `${next.name}__S${next.serie}`;
+                } else {
+                    nextValue = `${candidates[0].name}__S${candidates[0].serie}`;
+                }
+                select.value = nextValue;
+                updatePlaceholderForSelection();
+                document.getElementById('currentResult').focus();
+            } else if (editingPlayer) {
+                select.value = `${editingPlayer}__S${editingSeries || currentRound}`;
+                updatePlaceholderForSelection();
+                document.getElementById('currentResult').focus();
+            } else {
+                updatePlaceholderForSelection();
+            }
+
+            checkRoundComplete();
+        }
+
+        function updatePlaceholderForSelection() {
+            const val = document.getElementById('playerSelect').value;
+            const m = val.match(/^(.*)__S(\d)$/);
+            const input = document.getElementById('currentResult');
+            const serie = m ? m[2] : String(currentRound);
+            input.placeholder = `Ergebnis Serie ${serie} eintragen`;
+        }
+
+        function checkRoundComplete() {
+            const total = selectedPlayers.length;
+            const done1 = selectedPlayers.filter(p => results[p].res1 !== '').length;
+            const check = ' <span style="color:#2e7d32;font-weight:bold;">&#10003;</span>';
+            // Überschrift: solange Serie 1 unvollständig ist, immer "S1:" anzeigen
+            const titleEl = document.getElementById('roundTitle');
+            if (titleEl) {
+                titleEl.textContent = (currentRound === 2 && done1 === total && total > 0)
+                    ? 'S2: Ergebnis eintragen'
+                    : 'S1: Ergebnis eintragen';
+            }
+            // Setzliste-Button: sichtbar, sobald alle Serie-1-Ergebnisse vorliegen
+            const setzBtn = document.getElementById('saveSetzlisteBtn');
+            if (setzBtn) setzBtn.style.display = (total > 0 && done1 === total) ? 'block' : 'none';
+            if (currentRound === 1) {
+                const allHaveRes1 = done1 === total;
+                document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
+                document.getElementById('progress').innerHTML = total > 0
+                    ? `Serie 1: ${done1} von ${total} eingetragen${allHaveRes1 ? check : ''}`
+                    : '';
+            } else if (currentRound === 2) {
+                const done2 = selectedPlayers.filter(p => results[p].res2 !== '').length;
+                const allComplete = selectedPlayers.every(p => results[p].res1 !== '' && results[p].res2 !== '');
+                document.getElementById('exportSection').style.display = allComplete ? 'block' : 'none';
+                document.getElementById('progress').innerHTML = total > 0
+                    ? `Serie 1: ${done1} von ${total} eingetragen${done1 === total ? check : ''}\nSerie 2: ${done2} von ${total} eingetragen${done2 === total ? check : ''}`
+                    : '';
+            }
+        }
+
+        function prepareEdit(player, series) {
+            editingPlayer = player;
+            editingSeries = series;
+
+            const value = series === 1 ? results[player].res1 : results[player].res2;
+            
+
+            document.getElementById('currentResult').value = value;
+            document.getElementById('currentResult').focus();
+
+            updatePlayerSelect();
+
+            document.getElementById('message').textContent = 
+                `Korrigiere Ergebnis Serie ${series} für ${player} – neuen Wert eingeben und speichern.`;
+        }
+
+        function saveCurrentResult() {
+            const selectedValue = document.getElementById('playerSelect').value;
+            if (!selectedValue) {
+                alert('Bitte einen Spieler wählen!');
+                return;
+            }
+            // Neues Format "Name__S1"/"Name__S2"; Fallback für alte Zustände
+            const m = selectedValue.match(/^(.*)__S(\d)$/);
+            const selected = m ? m[1] : selectedValue;
+            const targetSerie = m ? parseInt(m[2], 10) : (editingSeries || currentRound);
+
+            const value = document.getElementById('currentResult').value;
+            if (value === '') {
+                alert('Bitte ein Ergebnis eingeben!');
+                return;
+            }
+
+            const numValue = parseFloat(value);
+
+            if (targetSerie === 1) {
+                results[selected].res1 = numValue;
+                if (imported[selected]) imported[selected].res1 = false;
+            } else if (targetSerie === 2) {
+                results[selected].res2 = numValue;
+                if (imported[selected]) imported[selected].res2 = false;
+            }
+
+            document.getElementById('message').textContent =
+                `Ergebnis Serie ${targetSerie} für ${selected} ${editingPlayer ? '(korrigiert)' : ''} gespeichert!`;
+
+            document.getElementById('currentResult').value = '';
+            const wasEditing = editingPlayer !== null;
+            editingPlayer = null;
+            editingSeries = null;
+
+            updatePlayerSelect(!wasEditing);
+            updateRanking();
+            checkRoundComplete();
+            saveState();
+        }
+
+        function startRound2() {
+            currentRound = 2;
+            editingPlayer = null;
+            editingSeries = null;
+	    const count = selectedPlayers.length;
+            document.getElementById('roundTitle').textContent = 'S2: Ergebnis eintragen';
+            document.getElementById('roundInfo').textContent = 
+                'Jetzt das Ergebnis der zweiten Serie für jeden Spieler eintragen.';
+            document.getElementById('currentResult').placeholder = 'Ergebnis Serie 2 eintragen';
+            document.getElementById('startRound2').style.display = 'none';
+            document.getElementById('rankingTitle').textContent = 'Endstand nach beiden Serien ('+count+' Mitspieler)';
+            updatePlayerSelect(true);
+            updateRanking();
+            checkRoundComplete();
+            saveState();
+        }
+
+function getTableSizes(n) {
+    const sizes = [];
+    if (n < 3) return sizes;
+
+    // Wenn durch 4 teilbar → nur 4er-Tische
+    if (n % 4 === 0) {
+        for (let i = 0; i < n; i += 4) sizes.push(4);
+        return sizes;
+    }
+
+    // Wenn durch 3 teilbar, aber NICHT durch 4 → nur 3er-Tische
+//    if (n % 3 === 0) {
+//        for (let i = 0; i < n; i += 3) sizes.push(3);
+//        return sizes;
+//    }
+
+    // sonst Kombination aus 4er- und 3er-Tischen, 4er bevorzugen
+    const max4 = Math.floor(n / 4);
+    for (let num4 = max4; num4 >= 0; num4--) {
+        const rest = n - num4 * 4;
+        if (rest === 0) {
+            for (let i = 0; i < num4; i++) sizes.push(4);
+            return sizes;
+        }
+        if (rest >= 3 && rest % 3 === 0) {
+            for (let i = 0; i < num4; i++) sizes.push(4);
+            for (let i = 0; i < rest; i += 3) sizes.push(3);
+            return sizes;
+        }
+    }
+
+    // Fallback, sollte praktisch nicht mehr vorkommen
+    for (let i = 0; i < n; i += 3) {
+        sizes.push(Math.min(3, n - i));
+    }
+    return sizes;
+}
+
+// Serie-1-Ergebnis als Setzliste (Tischeinteilung) für Serie 2 in Firestore speichern.
+// Rangfolge = Serie-1-Punkte absteigend, Gruppierung via getTableSizes (4er bevorzugt).
+window.saveSetzlisteSerie2 = async function(btn) {
+    if (typeof window.saveTurnierauslosung !== 'function') {
+        alert('App ist noch nicht bereit – bitte einen Moment warten und erneut versuchen.');
+        return;
+    }
+    const list = selectedPlayers.map(name => ({
+        name,
+        res1: results[name] ? results[name].res1 : ''
+    }));
+    if (list.length < 3) { alert('Zu wenige Spieler für eine Setzliste (mindestens 3).'); return; }
+    const missing = list.filter(p => p.res1 === '' || p.res1 == null);
+    if (missing.length) {
+        if (!confirm(missing.length + ' Spieler ohne Serie-1-Ergebnis. Fehlende Werte als 0 werten und trotzdem speichern?')) return;
+    }
+    // Serie-1-Rangfolge (Punkte absteigend), stabil nach Name bei Gleichstand
+    list.sort((a, b) => ((b.res1 || 0) - (a.res1 || 0)) || a.name.localeCompare(b.name, 'de'));
+    const sizes = getTableSizes(list.length);
+    const tische = [];
+    let idx = 0;
+    sizes.forEach((size, t) => {
+        const spieler = [];
+        for (let i = 0; i < size && idx < list.length; i++, idx++) spieler.push(list[idx].name);
+        tische.push({ tisch: t + 1, groesse: size, spieler });
+    });
+    await window.saveTurnierauslosung({
+        serie: '2',
+        spielerAnzahl: list.length,
+        tischAnzahl: tische.length,
+        tische
+    }, btn);
+};
+
+
+
+function updateRanking() {
+    const tbody = document.getElementById('rankingTable').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    let playersToShow = selectedPlayers.map(name => ({
+        name,
+        res1: results[name].res1,
+        res2: results[name].res2,
+        imp1: imported[name] ? imported[name].res1 : false,
+        imp2: imported[name] ? imported[name].res2 : false,
+        total: (results[name].res1 || 0) + (results[name].res2 || 0)
+    }));
+
+    // sortieren
+    if (currentRound === 1) {
+        playersToShow.sort((a, b) => (b.res1 || 0) - (a.res1 || 0));
+    } else {
+        playersToShow.sort((a, b) => b.total - a.total);
+    }
+
+    // Tischgrößen aus sortierter Anzahl bestimmen
+    const sizes = getTableSizes(playersToShow.length);
+
+    // Tischnummern gemäß Größenliste zuweisen
+    let idx = 0;
+    let tischNr = 1;
+    for (const size of sizes) {
+        for (let i = 0; i < size && idx < playersToShow.length; i++, idx++) {
+            playersToShow[idx].table = tischNr;
+        }
+        tischNr++;
+    }
+
+    // Tabelle rendern
+    let currentRank = 1;
+    playersToShow.forEach((p, i) => {
+        // Ranggleichheit: gleicher Score = gleicher Rang
+        const scoreKey = currentRound === 1 ? (p.res1 || 0) : p.total;
+        const prevScoreKey = i > 0 ? (currentRound === 1 ? (playersToShow[i-1].res1 || 0) : playersToShow[i-1].total) : null;
+        if (i === 0) {
+            currentRank = 1;
+        } else if (scoreKey !== prevScoreKey) {
+            currentRank = i + 1;
+        }
+        const rank = (i === 0 || scoreKey !== prevScoreKey) ? currentRank : '';
+
+        const row = document.createElement('tr');
+
+        // Prüfen ob Tischwechsel → dicke Linie
+        const isTableChange = i === 0 || p.table !== playersToShow[i-1].table;
+        row.className = isTableChange ? 'thick-line' : '';
+
+        const safeName = p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const manualStyle = 'font-style:italic;color:#d32f2f;';
+        const res1Html = p.res1 !== '' ? (p.imp1 ? String(p.res1) : `<span style="${manualStyle}">${p.res1}</span>`) : '-';
+        const res2Html = p.res2 !== '' ? (p.imp2 ? String(p.res2) : `<span style="${manualStyle}">${p.res2}</span>`) : '-';
+        row.innerHTML = `
+            <td>${rank}</td>
+            <td>${p.name}</td>
+            <td>
+                <div class="edit-cell">
+                    ${res1Html}
+                    ${p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 1)">Kor.</button>` : ''}
+                </div>
+            </td>
+            <td>${p.table}</td>
+            <td>
+                <div class="edit-cell">
+                    ${res2Html}
+                    ${p.res2 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 2)">Kor.</button>` : ''}
+                </div>
+            </td>
+            <td>${currentRound === 2 ? p.total : '-'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+
+
+
+        function neustart() {
+            if (!confirm('Wirklich alle Ergebnisse löschen und neu starten?')) return;
+            localStorage.removeItem('skat_state');
+            currentRound = 1;
+            editingPlayer = null;
+            editingSeries = null;
+            preisskatTempPlayers = new Set();
+            // Liste sofort leeren (entfernt Gäste, importierte und temporäre Spieler) …
+            loadPlayers('');
+            // … und frisch aus Mitspieler.txt neu einlesen.
+            fetch('Mitspieler.txt')
+                .then(r => r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status)))
+                .then(text => loadPlayers(text))
+                .catch(err => {
+                    // Bewusst NICHT die alte Liste wiederherstellen – sie bleibt leer.
+                    console.warn('Mitspieler.txt konnte nicht geladen werden:', err);
+                    loadPlayers('');
+                    const msg = document.getElementById('message');
+                    if (msg) msg.textContent = 'Mitspieler.txt konnte nicht geladen werden – Liste ist leer. Bitte über HTTP öffnen oder „Aus Firebase laden" nutzen.';
+                });
+        }
+
+        function exportToCSV() {
+            let playersToExport = selectedPlayers.map(name => ({
+                name,
+                res1: results[name].res1 || 0,
+                res2: results[name].res2 || 0,
+                total: (results[name].res1 || 0) + (results[name].res2 || 0)
+            }));
+
+            playersToExport.sort((a, b) => b.total - a.total);
+
+            let csv = 'Rang;Name;Serie 1;Serie 2;Gesamt\n';
+            playersToExport.forEach((p, i) => {
+                csv += `${i + 1};${p.name};${p.res1};${p.res2};${p.total}\n`;
+            });
+
+            const today = new Date();
+            const dateStr = today.toISOString().slice(0, 10);
+
+	    // UTF-8 BOM hinzufügen: \uFEFF
+	    const BOM = '\uFEFF';
+	    const csvWithBOM = BOM + csv;
+
+            const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Endstand_${dateStr}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            document.getElementById('message').textContent = `CSV-Datei Endstand_${dateStr}.csv wurde heruntergeladen!`;
+        }
+
+        function setupRound1() {
+            currentRound = 1;
+            editingPlayer = null;
+            editingSeries = null;
+	    const count = selectedPlayers.length;
+
+            document.getElementById('roundTitle').textContent = 'S1: Ergebnis eintragen';
+            document.getElementById('roundInfo').textContent = 
+                'Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.';
+            document.getElementById('currentResult').placeholder = 'Ergebnis Serie 1 eintragen';
+            document.getElementById('startRound2').style.display = 'none';
+            document.getElementById('exportSection').style.display = 'none';
+            document.getElementById('rankingTitle').textContent = 'Zwischenstand nach Serie 1 ('+count+' Mitspieler)';
+            updatePlayerSelect(true);
+            updateRanking();
+        }
+
+        document.getElementById('playerSelect').addEventListener('change', function() {
+            updatePlaceholderForSelection();
+            if (this.value) {
+                document.getElementById('currentResult').focus();
+            }
+        });
+
+        document.getElementById('currentResult').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveCurrentResult();
+            }
+        });
+
+        // Brücke für den Firestore-Import im Module-Script (siehe unten).
+        // Notwendig, weil let-Variablen nicht automatisch auf window liegen.
+        window.skatImportHelper = {
+            getPlayers: () => allPlayers.slice(),
+            addPlayer: (name, isGuest) => {
+                addPlayerToList(name);
+                if (isGuest) guests.add(name);
+            },
+            checkPlayer: (name) => {
+                const cb = document.getElementById('cb_' + name);
+                if (cb) cb.checked = true;
+            },
+            setResult: (name, serie, punkte) => {
+                if (!results[name]) return;
+                const num = typeof punkte === 'number' ? punkte : parseFloat(punkte);
+                if (Number.isNaN(num)) return;
+                if (!imported[name]) imported[name] = { res1: false, res2: false };
+                if (serie === '1') { results[name].res1 = num; imported[name].res1 = true; }
+                else if (serie === '2') { results[name].res2 = num; imported[name].res2 = true; }
+            },
+            hasAnyResults: () => allPlayers.some(p => results[p] && (results[p].res1 !== '' || results[p].res2 !== '')),
+            getManualEntries: (serie) => {
+                // Liefert alle manuell eingetragenen (nicht aus Firestore importierten) Ergebnisse der Serie.
+                const key = serie === 1 ? 'res1' : 'res2';
+                return allPlayers
+                    .filter(p => results[p] && results[p][key] !== '' && !(imported[p] && imported[p][key]))
+                    .map(p => ({ name: p, gesamtpunkte: results[p][key] }));
+            },
+            resetAll: () => {
+                allPlayers.forEach(p => {
+                    results[p] = { res1: '', res2: '' };
+                    imported[p] = { res1: false, res2: false };
+                    const cb = document.getElementById('cb_' + p);
+                    if (cb) cb.checked = false;
+                });
+                currentRound = 1;
+                editingPlayer = null;
+                editingSeries = null;
+            },
+            finalize: (hasSerie2, mode) => {
+                selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+                // Im Merge-Modus die aktuelle Runde nicht zurückstufen
+                if (mode === 'merge') {
+                    const anyRes2 = allPlayers.some(p => results[p] && results[p].res2 !== '');
+                    if (hasSerie2 || anyRes2 || currentRound === 2) {
+                        currentRound = 2;
+                        startRound2();
+                    } else {
+                        setupRound1();
+                    }
+                } else if (hasSerie2) {
+                    currentRound = 2;
+                    startRound2();
+                } else {
+                    currentRound = 1;
+                    setupRound1();
+                }
+                updateRanking();
+                checkRoundComplete();
+                saveState();
+            }
+        };
+    </script>
+    <div class="footer">
+    © 2026 by Frank Bertram (V1.9)
+    </div>
+
+    <div id="gesamtlisteModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+            <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
+                <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
+            </div>
+            <h2 id="gesamtlisteHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Jahreswertung</h2>
+            <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
+                <span id="gesamtlisteStand" style="font-size:16px;font-weight:700;letter-spacing:0.3px;">Stand: –</span>
+                <button onclick="exportGesamtlistePdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
+                <button onclick="closeGesamtliste()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="gesamtlisteContent" style="font-size:13px;">Lade …</div>
+    </div>
+
+    <div id="tageswertungModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+            <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
+                <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
+            </div>
+            <h2 id="tageswertungHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Tageswertung</h2>
+            <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
+                <select id="tageswertungSelect" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
+                <button onclick="exportTageswertungPdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
+                <button onclick="exportTageswertungExcel()" style="background:#2e7d32;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Excel</button>
+                <button onclick="closeTageswertung()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="tageswertungContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
+    </div>
+
+    <div id="monatswertungModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+            <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
+                <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
+            </div>
+            <h2 id="monatswertungHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Monatswertung</h2>
+            <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
+                <select id="monatswertungSelect" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
+                <button onclick="exportMonatswertungPdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
+                <button onclick="exportMonatswertungExcel()" style="background:#2e7d32;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Excel</button>
+                <button onclick="closeMonatswertung()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="monatswertungContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
+    </div>
+
+    <div id="mitspielerVerwModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+            <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
+                <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
+            </div>
+            <h2 style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Mitspieler-Verwaltung</h2>
+            <div style="justify-self:end;display:flex;align-items:center;gap:8px;">
+                <button onclick="copyPreisskatNames(this)" style="background:#1565c0;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Preisskat kopieren</button>
+                <button onclick="saveMitspielerVerw()" style="background:#388e3c;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Speichern</button>
+                <button onclick="closeMitspielerVerw()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="mitspielerVerwContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
+    </div>
+
+    <div id="importModeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:white;padding:20px;border-radius:8px;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+            <h3 style="margin:0 0 10px 0;">Spieltag laden</h3>
+            <p style="margin:0 0 15px 0;font-size:14px;">Es sind bereits Ergebnisse vorhanden. Wie soll der Import erfolgen?</p>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <button onclick="resolveImportMode('all')" style="background:#e53935;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Alle vorhandenen Einträge löschen</button>
+                <button onclick="resolveImportMode('merge')" style="background:#1976d2;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Nur betroffene Einträge überschreiben</button>
+                <button onclick="resolveImportMode('cancel')" style="background:#9e9e9e;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import { getFirestore, collection, query, where, getDocs, getDoc, setDoc, addDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDmiQvDu0pxQYoidaZfRVY0BXZjLOHhw7w",
+            authDomain: "skatverein-b77ef.firebaseapp.com",
+            projectId: "skatverein-b77ef",
+            storageBucket: "skatverein-b77ef.firebasestorage.app",
+            messagingSenderId: "763387283518",
+            appId: "1:763387283518:web:9edf27d79876cf2059296f"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        onAuthStateChanged(auth, user => {
+            const statusEl = document.getElementById('authStatus');
+            const signInBtn = document.getElementById('signInBtn');
+            const signOutBtn = document.getElementById('signOutBtn');
+            const copyUidBtn = document.getElementById('copyUidBtn');
+            if (!statusEl) return;
+            if (user) {
+                console.log('Angemeldet:', user.displayName, user.email, 'UID:', user.uid);
+                statusEl.textContent = `${user.displayName || user.email} – UID: ${user.uid}`;
+                statusEl.style.color = '#2e7d32';
+                if (signInBtn) signInBtn.style.display = 'none';
+                if (signOutBtn) signOutBtn.style.display = 'inline-block';
+                if (copyUidBtn) copyUidBtn.style.display = 'inline-block';
+            } else {
+                statusEl.textContent = 'nicht angemeldet';
+                statusEl.style.color = '#888';
+                if (signInBtn) signInBtn.style.display = 'inline-block';
+                if (signOutBtn) signOutBtn.style.display = 'none';
+                if (copyUidBtn) copyUidBtn.style.display = 'none';
+            }
+        });
+
+        window.signInGoogle = function() {
+            signInWithPopup(auth, provider).then(result => {
+                const u = result.user;
+                console.log('Angemeldet:', u.displayName, u.email, 'UID:', u.uid);
+            }).catch(err => {
+                console.error('Login-Fehler:', err);
+                alert('Login fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            });
+        };
+
+        function openOverlay(id) {
+            document.getElementById(id).style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+        function closeOverlay(id) {
+            document.getElementById(id).style.display = 'none';
+            const anyOpen = ['gesamtlisteModal','tageswertungModal','monatswertungModal','mitspielerVerwModal']
+                .some(m => {
+                    const el = document.getElementById(m);
+                    return el && el.style.display && el.style.display !== 'none';
+                });
+            if (!anyOpen) document.body.style.overflow = '';
+        }
+
+        window.closeGesamtliste = function() {
+            closeOverlay('gesamtlisteModal');
+        };
+
+        window.exportGesamtlistePdf = async function() {
+            if (!window.jspdf) {
+                alert('PDF-Bibliothek nicht geladen — bitte Internetverbindung prüfen.');
+                return;
+            }
+            const data = window.__gesamtData;
+            if (!data || !data.players || !data.players.length) {
+                alert('Keine Daten zum Export vorhanden. Bitte Jahreswertung erneut öffnen.');
+                return;
+            }
+            try {
+                const { players, dates } = data;
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const pageW = 297, pageH = 210, margin = 8;
+
+                // ---------- Kopfzeile ----------
+                const clubName = '1. Sintherner Skatclub';
+                const logoData = window.SKAT_LOGO_DATA || null;
+                let logoRatio = 45 / 44;
+                if (logoData) {
+                    try {
+                        const logoImg = await new Promise((resolve, reject) => {
+                            const im = new Image();
+                            im.onload = () => resolve(im);
+                            im.onerror = reject;
+                            im.src = logoData;
+                        });
+                        logoRatio = logoImg.naturalWidth / logoImg.naturalHeight;
+                    } catch (e) { console.warn('Logo-Maße:', e); }
+                }
+                const logoH = 11, logoW = logoH * logoRatio;
+                if (logoData) pdf.addImage(logoData, 'PNG', margin, margin, logoW, logoH);
+                pdf.setFontSize(16); pdf.setFont(undefined, 'bold');
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(clubName, margin + (logoData ? logoW + 3 : 0), margin + 8);
+                pdf.text(data.titelText || 'Jahreswertung', pageW / 2, margin + 8, { align: 'center' });
+                pdf.setFontSize(11);
+                pdf.text(data.standText || '', pageW - margin, margin + 8, { align: 'right' });
+                pdf.setFont(undefined, 'normal');
+
+                // ---------- Spaltenlayout (feste Breiten in mm) ----------
+                const cols = [];
+                cols.push({ key: 'rank', w: 6, align: 'right' });
+                cols.push({ key: 'name', w: 35, align: 'left' });
+                dates.forEach((d, i) => cols.push({ key: 'st', iso: d.iso, header: 'ST ' + (i + 1), sub: d.label, w: 8.2, align: 'right', subSize: 5 }));
+                cols.push({ key: 'total', w: 15, align: 'right', fill: [227, 242, 253], header: 'Gesamt', sub: 'beste 18 ST *', subSize: 5 });
+                cols.push({ key: 'streich', w: 13, align: 'right', fill: [255, 243, 224], header: 'Streich', sub: 'nächste 2 ST', subSize: 5 });
+                cols.push({ key: 'form', w: 17, align: 'right', fill: [232, 245, 233], header: 'Form', sub: 'Ø letzte 8 ST', subSize: 5 });
+                const totalW = cols.reduce((s, c) => s + c.w, 0);
+                const startX = Math.max(margin / 2, (pageW - totalW) / 2);
+                let cxpos = startX;
+                cols.forEach(c => { c.x = cxpos; cxpos += c.w; });
+                const pad = 1.0;
+
+                // ---------- Zeilenhöhen ----------
+                const yTop = margin + 14;
+                const bottomLimit = pageH - margin - 4 - (data.hasTie ? 3.5 : 0);
+                const headerH = 8;
+                const rowH = Math.min(8, Math.max(4, (bottomLimit - yTop - headerH) / players.length));
+                const tableBottom = yTop + headerH + rowH * players.length;
+
+                function cellText(str, col, rowY, h, opts) {
+                    opts = opts || {};
+                    if (str == null || str === '') return;
+                    str = String(str);
+                    pdf.setFontSize(opts.size || 8);
+                    pdf.setFont(undefined, opts.bold ? 'bold' : 'normal');
+                    const tc = opts.color || [0, 0, 0];
+                    pdf.setTextColor(tc[0], tc[1], tc[2]);
+                    const align = col.align;
+                    const tx = align === 'left' ? col.x + pad : col.x + col.w - pad;
+                    const ty = rowY + h / 2;
+                    pdf.text(str, tx, ty, { align, baseline: 'middle' });
+                    if (opts.strike) {
+                        const tw = pdf.getTextWidth(str);
+                        const x1 = align === 'right' ? tx - tw : tx;
+                        const x2 = align === 'right' ? tx : tx + tw;
+                        pdf.setDrawColor(tc[0], tc[1], tc[2]); pdf.setLineWidth(0.25);
+                        pdf.line(x1, ty, x2, ty);
+                    }
+                    pdf.setTextColor(0, 0, 0);
+                }
+
+                // ---------- Kopfzeile der Tabelle ----------
+                pdf.setFillColor(242, 242, 242);
+                pdf.rect(startX, yTop, totalW, headerH, 'F');
+                cols.forEach(c => { if (c.fill) { pdf.setFillColor(c.fill[0], c.fill[1], c.fill[2]); pdf.rect(c.x, yTop, c.w, headerH, 'F'); } });
+                // Alle Hauptüberschriften auf derselben oberen Zeile (zeilenbündig), Unterzeilen darunter.
+                const headMainY = yTop + headerH / 2 - 1.2;
+                const headSubY = yTop + headerH / 2 + 2;
+                cols.forEach(c => {
+                    const label = c.key === 'rank' ? 'Rg' : (c.key === 'name' ? 'Name' : c.header);
+                    const tx = c.align === 'left' ? c.x + pad : c.x + c.w - pad;
+                    pdf.setFont(undefined, 'bold'); pdf.setFontSize(c.headerSize || (c.key === 'st' ? 7 : 8)); pdf.setTextColor(0, 0, 0);
+                    pdf.text(label, tx, headMainY, { align: c.align, baseline: 'middle' });
+                    if (c.sub) {
+                        pdf.setFont(undefined, 'normal'); pdf.setFontSize(c.subSize || 6); pdf.setTextColor(110, 110, 110);
+                        pdf.text(c.sub, c.x + c.w - pad, headSubY, { align: 'right', baseline: 'middle' });
+                        pdf.setTextColor(0, 0, 0);
+                    }
+                });
+
+                // ---------- Datenzeilen ----------
+                players.forEach((p, idx) => {
+                    const rowY = yTop + headerH + idx * rowH;
+                    const zebra = idx % 2 === 1 ? [245, 245, 245] : [255, 255, 255];
+                    pdf.setFillColor(zebra[0], zebra[1], zebra[2]);
+                    pdf.rect(startX, rowY, totalW, rowH, 'F');
+                    cols.forEach(c => { if (c.fill) { pdf.setFillColor(c.fill[0], c.fill[1], c.fill[2]); pdf.rect(c.x, rowY, c.w, rowH, 'F'); } });
+                    // Sonderhintergründe der ST-Zellen
+                    cols.forEach(c => {
+                        if (c.key !== 'st') return;
+                        const v = p.byDate[c.iso];
+                        if (v == null) return;
+                        if (v < 0) { pdf.setFillColor(211, 47, 47); pdf.rect(c.x, rowY, c.w, rowH, 'F'); }
+                        else if (p.single.has(c.iso)) { pdf.setFillColor(255, 249, 196); pdf.rect(c.x, rowY, c.w, rowH, 'F'); }
+                    });
+                    // Texte
+                    cols.forEach(c => {
+                        if (c.key === 'rank') cellText(p.displayRank, c, rowY, rowH, {});
+                        else if (c.key === 'name') cellText(p.name + (p.tieDecided ? ' *' : ''), c, rowY, rowH, {});
+                        else if (c.key === 'total') cellText(p.total, c, rowY, rowH, { bold: true });
+                        else if (c.key === 'streich') cellText(p.streich && p.streich.length ? p.streich.join(', ') : '-', c, rowY, rowH, { size: 7.5, color: [102, 102, 102] });
+                        else if (c.key === 'form') {
+                            if (p.form == null) { cellText('-', c, rowY, rowH, {}); }
+                            else {
+                                const numRight = c.x + c.w - 7; // feste rechte Kante der Zahl (Platz rechts für die Platzierung)
+                                pdf.setFont(undefined, 'bold'); pdf.setFontSize(7.5); pdf.setTextColor(0, 0, 0);
+                                pdf.text(p.formNum, numRight, rowY + rowH / 2, { align: 'right', baseline: 'middle' });
+                                if (p.formRankStr) {
+                                    pdf.setFont(undefined, 'normal'); pdf.setFontSize(7); pdf.setTextColor(90, 90, 90);
+                                    pdf.text(p.formRankStr, numRight + 1, rowY + rowH / 2, { align: 'left', baseline: 'middle' });
+                                    pdf.setTextColor(0, 0, 0);
+                                }
+                            }
+                        }
+                        else if (c.key === 'st') {
+                            const v = p.byDate[c.iso];
+                            if (v == null) { cellText('-', c, rowY, rowH, { color: [187, 187, 187] }); return; }
+                            const isDropped = p.dropped.has(c.iso);
+                            let color = [0, 0, 0];
+                            if (v < 0) color = [255, 255, 255];
+                            else if (p.missing.has(c.iso)) color = [211, 47, 47];
+                            if (isDropped) color = [150, 150, 150];
+                            cellText(v, c, rowY, rowH, { bold: !isDropped, color, strike: isDropped });
+                        }
+                    });
+                });
+
+                // ---------- Gitterlinien ----------
+                pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.1);
+                let vx = startX;
+                pdf.line(vx, yTop, vx, tableBottom);
+                cols.forEach(c => { vx += c.w; pdf.line(vx, yTop, vx, tableBottom); });
+                pdf.line(startX, yTop, startX + totalW, yTop);
+                for (let r = 0; r <= players.length; r++) {
+                    const yy = yTop + headerH + r * rowH;
+                    pdf.line(startX, yy, startX + totalW, yy);
+                }
+
+                // ---------- Fußnoten (direkt unter der Tabelle) ----------
+                pdf.setFontSize(7); pdf.setTextColor(120, 120, 120);
+                let footY = tableBottom + 4;
+                pdf.text('* negative Tagesergebnisse zählen immer für die Jahreswertung (kein Streichergebnis)', startX, footY);
+                if (data.hasTie) {
+                    footY += 3.5;
+                    pdf.text('* Bei Punktgleichstand entscheidet das höchste Tagesergebnis, bei erneutem Gleichstand das zweithöchste usw.', startX, footY);
+                }
+                pdf.setTextColor(0, 0, 0);
+
+                const year = data.seasonYear || new Date().getFullYear();
+                const stNr = String(data.playedSpieltage || 0).padStart(2, '0');
+                pdf.save(`Jahreswertung_${year}-${stNr}.pdf`);
+            } catch (err) {
+                console.error(err);
+                alert('PDF-Export fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        };
+
+        function fitGesamtlisteToViewport() {
+            const scroller = document.getElementById('gesamtlisteScroller');
+            if (!scroller) return;
+            const table = scroller.querySelector('table');
+            if (!table) return;
+            scroller.style.zoom = '1';
+            const natural = table.scrollWidth;
+            const available = window.innerWidth - 40; // 20px Padding links+rechts
+            if (natural > available) {
+                scroller.style.zoom = String(available / natural);
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            const modal = document.getElementById('gesamtlisteModal');
+            if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+                fitGesamtlisteToViewport();
+            }
+        });
+
+        window.showGesamtliste = async function() {
+            const content = document.getElementById('gesamtlisteContent');
+            openOverlay('gesamtlisteModal');
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                // 24 Spieltag-Termine (alle 2 Wochen ab 13.01.2026)
+                const dates = [];
+                const start = new Date(Date.UTC(2026, 0, 13));
+                for (let i = 0; i < 24; i++) {
+                    const d = new Date(start);
+                    d.setUTCDate(d.getUTCDate() + i * 14);
+                    const iso = d.toISOString().slice(0, 10);
+                    const dd = String(d.getUTCDate()).padStart(2, '0');
+                    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    dates.push({ iso, label: `${dd}.${mm}` });
+                }
+
+                // Mitspieler-Liste aus Firestore: Dokument 'mitspieler/Liste', Feld 'Mitspieler' (Array)
+                // Alt: Array von Strings. Neu: Array von Objekten { name, eintritt, mitglied }.
+                const listeSnap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                const mitspieler = new Set();
+                const mitspielerInfo = {}; // name -> { eintritt, mitglied }
+                if (listeSnap.exists()) {
+                    const arr = listeSnap.data().Mitspieler || [];
+                    arr.forEach(entry => {
+                        if (!entry || typeof entry !== 'object') return;
+                        if (entry.mitglied !== true) return;
+                        const name = (entry.name || '').trim();
+                        if (!name) return;
+                        mitspieler.add(name);
+                        mitspielerInfo[name] = {
+                            eintritt: entry.eintritt || '',
+                            mitglied: true
+                        };
+                    });
+                }
+                if (mitspieler.size === 0) {
+                    content.innerHTML = '<p>Keine Mitspieler in „mitspieler/Liste.Mitspieler" gefunden.</p>';
+                    return;
+                }
+
+                function formatEintritt(v) {
+                    if (!v) return '';
+                    // Firestore-Timestamp
+                    if (v && typeof v.toDate === 'function') v = v.toDate();
+                    if (v instanceof Date) {
+                        const dd = String(v.getDate()).padStart(2, '0');
+                        const mm = String(v.getMonth() + 1).padStart(2, '0');
+                        return `${dd}.${mm}.${v.getFullYear()}`;
+                    }
+                    const s = String(v).trim();
+                    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (iso) return `${iso[3]}.${iso[2]}.${iso[1]}`;
+                    return s;
+                }
+
+                const snap = await getDocs(collection(db, 'spieltage'));
+                // playerData[name][datum][serie] = punkte – nur Mitspieler, Tisch-Duplikate überschreiben sich
+                const playerData = {};
+                const datesWithData = new Set(); // Tage, für die tatsächlich Einträge existieren
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const datum = data.datum;
+                    const serie = String(data.serie);
+                    (data.spieler || []).forEach(s => {
+                        if (!s || !s.name) return;
+                        if (!mitspieler.has(s.name)) return;
+                        const val = parseFloat(s.gesamtpunkte);
+                        if (Number.isNaN(val)) return;
+                        datesWithData.add(datum);
+                        if (!playerData[s.name]) playerData[s.name] = {};
+                        if (!playerData[s.name][datum]) playerData[s.name][datum] = {};
+                        playerData[s.name][datum][serie] = val;
+                    });
+                });
+
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const DEFAULT_PUNKTE = 750;
+                // Sonderspieltage (z. B. Stadtmeisterschaft) zählen NICHT für die Liga – ausschließen.
+                const extraIsoSet = new Set((typeof EXTRA_SPIELTAGE !== 'undefined' ? EXTRA_SPIELTAGE : []).map(ex => ex.iso));
+                // Alle regulären je gespielten Spieltage (auch aus Vorjahren) chronologisch – für die
+                // jahresübergreifende Liga-Berechnung (Schnitt der letzten 8 Spieltage).
+                const allPlayedSorted = [...datesWithData]
+                    .filter(iso => iso <= todayIso && !extraIsoSet.has(iso))
+                    .sort();
+                // Nur Tage mit echten Einträgen zählen als gespielt. Ein Spieltag ohne jeden Eintrag
+                // (z. B. der heutige Abend vor Ergebniseingabe) wird NICHT mit 750 aufgefüllt.
+                const playedDates = dates.filter(d => d.iso <= todayIso && datesWithData.has(d.iso));
+                // ST-Nummer des letzten tatsächlich gespielten Tages (korrekt auch bei Lücken).
+                const lastPlayedIso = playedDates.length ? playedDates[playedDates.length - 1].iso : '';
+                const playedSpieltage = lastPlayedIso ? (dates.findIndex(d => d.iso === lastPlayedIso) + 1) : 0;
+                const seasonYear = dates.length ? dates[0].iso.slice(0, 4) : new Date().getFullYear();
+                function isoToDeDate(iso) {
+                    if (!iso) return '';
+                    const [y, m, d] = iso.split('-');
+                    return `${d}.${m}.${y}`;
+                }
+                const lastSpieltagIso = playedDates.length ? playedDates[playedDates.length - 1].iso : '';
+                const standText = lastSpieltagIso
+                    ? `Stand: ${isoToDeDate(lastSpieltagIso)}`
+                    : 'Stand: –';
+                const titelText = playedSpieltage > 0
+                    ? `Jahreswertung ${seasonYear} zum ${playedSpieltage}. Spieltag`
+                    : `Jahreswertung ${seasonYear}`;
+                window.__gesamtMeta = { playedSpieltage, seasonYear };
+                const standEl = document.getElementById('gesamtlisteStand');
+                if (standEl) standEl.textContent = standText;
+                const headingEl = document.getElementById('gesamtlisteHeading');
+                if (headingEl) headingEl.textContent = titelText;
+                function eintrittToIso(v) {
+                    if (!v) return '';
+                    if (v && typeof v.toDate === 'function') v = v.toDate();
+                    if (v instanceof Date) {
+                        const yyyy = v.getFullYear();
+                        const mm = String(v.getMonth() + 1).padStart(2, '0');
+                        const dd = String(v.getDate()).padStart(2, '0');
+                        return `${yyyy}-${mm}-${dd}`;
+                    }
+                    const s = String(v).trim();
+                    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+                    const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+                    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+                    return '';
+                }
+                const KEEP_BEST = 18;
+                const players = [...mitspieler].map(name => {
+                    const byDate = {};
+                    const missing = new Set();
+                    const dropped = new Set();
+                    const single = new Set();
+                    const perDate = playerData[name] || {};
+                    const eintrittIso = eintrittToIso((mitspielerInfo[name] || {}).eintritt);
+                    const pairs = [];
+                    dates.forEach(d => {
+                        const afterEintritt = !eintrittIso || d.iso >= eintrittIso;
+                        if (!afterEintritt) return;
+                        const day = perDate[d.iso];
+                        if (day) {
+                            const has1 = '1' in day;
+                            const has2 = '2' in day;
+                            const s1 = day['1'] || 0;
+                            const s2 = day['2'] || 0;
+                            const sum = s1 + s2;
+                            byDate[d.iso] = sum;
+                            if (has1 !== has2) single.add(d.iso);
+                            pairs.push({ iso: d.iso, value: sum });
+                        } else if (d.iso <= todayIso && datesWithData.has(d.iso)) {
+                            // Nur auffüllen, wenn der Tag tatsächlich gespielt wurde (Einträge vorhanden).
+                            byDate[d.iso] = DEFAULT_PUNKTE;
+                            missing.add(d.iso);
+                            pairs.push({ iso: d.iso, value: DEFAULT_PUNKTE });
+                        }
+                    });
+                    // Streichresultate: nur Werte >= 0 sind streichbar, gestrichen werden die niedrigsten.
+                    if (pairs.length > KEEP_BEST) {
+                        const droppable = pairs.filter(p => p.value >= 0)
+                            .slice().sort((a, b) => a.value - b.value);
+                        const dropCount = Math.min(pairs.length - KEEP_BEST, droppable.length);
+                        for (let i = 0; i < dropCount; i++) {
+                            dropped.add(droppable[i].iso);
+                        }
+                    }
+                    let total = 0;
+                    for (const p of pairs) {
+                        if (!dropped.has(p.iso)) total += p.value;
+                    }
+                    // Nächste 2 Streichkandidaten im "beste 18"-Fenster:
+                    // vorhandene (nicht-negative) Ergebnisse + so viele 0-Plätze, wie bis 18 noch fehlen
+                    // (z. B. 17 gespielt → 1 freier 0-Platz), dann die zwei niedrigsten
+                    // (bereits gestrichene übersprungen). Negative zählen immer und werden nie gestrichen.
+                    const nonNegValues = pairs.filter(p => p.value >= 0).map(p => p.value);
+                    const emptySlots = Math.max(0, KEEP_BEST - pairs.length);
+                    const streichPool = nonNegValues
+                        .concat(new Array(emptySlots).fill(0))
+                        .sort((a, b) => a - b);
+                    const streich = streichPool.slice(dropped.size, dropped.size + 2);
+                    // Tie-Break: alle tatsächlich gespielten Spieltagergebnisse (S1+S2), absteigend.
+                    // 750-Default für Abwesenheit (missing) zählt NICHT als echtes Ergebnis.
+                    const sortedDays = pairs
+                        .filter(pr => !missing.has(pr.iso))
+                        .map(pr => pr.value)
+                        .sort((x, y) => y - x);
+                    // Liga: Durchschnitt der letzten 8 Spieltage – JAHRESÜBERGREIFEND (auch Vorjahre).
+                    // Es zählen nur Anwesenheiten (Wert <> 750); bei weniger als 6 Anwesenheiten wird
+                    // mit 750 auf 6 aufgefüllt (Nenner = 6).
+                    let form = null;
+                    const ligaDates = allPlayedSorted
+                        .filter(iso => !eintrittIso || iso >= eintrittIso)
+                        .slice(-8);
+                    if (ligaDates.length > 0) {
+                        const ligaValues = ligaDates.map(iso => {
+                            const day = perDate[iso];
+                            if (day) return (day['1'] || 0) + (day['2'] || 0);
+                            return 750; // an diesem Spieltag abwesend
+                        });
+                        const present = ligaValues.filter(v => v !== 750);
+                        const sumPresent = present.reduce((a, b) => a + b, 0);
+                        if (present.length >= 6) {
+                            form = Math.round((sumPresent / present.length) * 10) / 10;
+                        } else {
+                            form = Math.round(((sumPresent + 750 * (6 - present.length)) / 6) * 10) / 10;
+                        }
+                        // Debug: window.__ligaDebug = 'Nachname, Vorname' setzen und Jahreswertung erneut öffnen.
+                        if (window.__ligaDebug && name === window.__ligaDebug) {
+                            console.log('Liga-Debug', name, '\nTage:', ligaDates, '\nWerte:', ligaValues, '\nanwesend:', present, '\nForm:', form);
+                        }
+                    }
+                    return { name, byDate, missing, dropped, single, total, streich, sortedDays, form };
+                });
+
+                // Vergleicht die Tagesergebnis-Listen der Reihe nach: bestes, dann 2.-bestes, usw.
+                // Rückgabe < 0 wenn a vor b, > 0 wenn b vor a, 0 bei Gleichstand.
+                function compareDays(a, b) {
+                    const n = Math.max(a.length, b.length);
+                    for (let i = 0; i < n; i++) {
+                        const av = i < a.length ? a[i] : -Infinity;
+                        const bv = i < b.length ? b[i] : -Infinity;
+                        if (av !== bv) return bv - av; // höheres Ergebnis zuerst
+                    }
+                    return 0;
+                }
+
+                // Sortierung: Gesamtpunkte absteigend; bei Gleichstand kaskadierend über die Tagesergebnisse.
+                players.sort((a, b) => (b.total - a.total) || compareDays(a.sortedDays, b.sortedDays));
+
+                // Gleicher Rang nur bei gleichen Punkten UND identischer Tagesergebnis-Reihe.
+                let currentRank = 1;
+                players.forEach((p, i) => {
+                    const prev = players[i - 1];
+                    const tiedWithPrev = i > 0 && prev.total === p.total && compareDays(prev.sortedDays, p.sortedDays) === 0;
+                    if (i === 0) currentRank = 1;
+                    else if (!tiedWithPrev) currentRank = i + 1;
+                    p.rank = currentRank;
+                    p.displayRank = (i === 0 || !tiedWithPrev) ? currentRank : '';
+                });
+
+                // Fußnote: Punktgleichstände, die erst über die Tagesergebnisse entschieden wurden.
+                const tieNotes = [];
+                for (let i = 0; i < players.length;) {
+                    let j = i;
+                    while (j + 1 < players.length && players[j + 1].total === players[i].total) j++;
+                    if (j > i) {
+                        const group = players.slice(i, j + 1);
+                        // Nur relevant, wenn die Tagesergebnisse tatsächlich eine Reihenfolge erzwungen haben.
+                        const decided = group.some((p, k) => k > 0 && compareDays(group[k - 1].sortedDays, p.sortedDays) !== 0);
+                        if (decided) {
+                            group.forEach(p => { p.tieDecided = true; });
+                            const namesList = group.map(p => `${p.rank}. ${p.name}`).join(', ');
+                            tieNotes.push(`${group[0].total} Punkte: ${namesList}`);
+                        }
+                    }
+                    i = j + 1;
+                }
+                window.__gesamtMeta.hasTie = tieNotes.length > 0;
+
+                // Form-Platzierung: Rang nach Form-Wert absteigend (gleiche Form = gleicher Rang).
+                const formSorted = players.filter(p => p.form != null).slice().sort((a, b) => b.form - a.form);
+                let fRank = 0, fPrev = null;
+                formSorted.forEach((p, i) => {
+                    if (i === 0 || p.form !== fPrev) fRank = i + 1;
+                    p.formRank = fRank;
+                    fPrev = p.form;
+                });
+                // Zahl und Platzierung getrennt, damit die Zahlen bündig untereinander stehen.
+                players.forEach(p => {
+                    if (p.form == null) { p.formNum = '-'; p.formRankStr = ''; }
+                    else {
+                        p.formNum = p.form.toFixed(1).replace('.', ',');
+                        p.formRankStr = p.formRank ? `(${p.formRank})` : '';
+                    }
+                });
+
+                // Daten für den nativen PDF-Export (feste Spaltenbreiten, keine Bild-Skalierung) bereitstellen.
+                window.__gesamtData = {
+                    players, dates,
+                    titelText, standText, seasonYear, playedSpieltage,
+                    hasTie: tieNotes.length > 0
+                };
+
+                if (players.length === 0) {
+                    content.innerHTML = '<p>Keine Daten in Firestore gefunden.</p>';
+                    return;
+                }
+
+                const cell = 'padding:8px 2px;border:1px solid #ddd;';
+                const th = 'background:#f2f2f2;font-weight:bold;vertical-align:top;line-height:14px;' + cell;
+                const stickyRank = 'position:sticky;left:0;background:white;z-index:1;';
+                const stickyName = 'position:sticky;left:30px;background:white;z-index:1;';
+                const stickyRankTh = 'position:sticky;left:0;z-index:2;';
+                const stickyNameTh = 'position:sticky;left:30px;z-index:2;';
+
+                let html = '<div id="gesamtlisteScroller" style="overflow:auto;max-height:calc(100vh - 100px);"><table style="border-collapse:collapse;font-size:12px;">';
+                html += '<thead><tr>';
+                html += `<th style="${th}${stickyRankTh}width:30px;text-align:right;">Rg</th>`;
+                html += `<th style="${th}${stickyNameTh}text-align:left;white-space:nowrap;width:140px;max-width:140px;overflow:hidden;text-overflow:ellipsis;">Name</th>`;
+                dates.forEach((d, i) => {
+                    html += `<th style="${th}text-align:right;white-space:nowrap;font-size:10px;width:26px;min-width:26px;max-width:26px;">ST ${i + 1}<br><span style="font-weight:normal;color:#666;font-size:8px;">${d.label}</span></th>`;
+                });
+                html += `<th style="${th}text-align:right;background:#e3f2fd;width:52px;min-width:52px;max-width:52px;">Gesamt<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">beste 18 ST&nbsp;<span style="color:#d32f2f;">*</span></span></th>`;
+                html += `<th style="${th}text-align:right;background:#fff3e0;width:52px;min-width:52px;max-width:52px;">Streich<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">nächste 2 ST</span></th>`;
+                html += `<th style="${th}text-align:right;background:#e8f5e9;width:72px;min-width:72px;max-width:72px;">Form<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">Ø letzte 8 ST</span></th>`;
+                html += '</tr></thead><tbody>';
+
+                players.forEach((p, idx) => {
+                    const rowBg = idx % 2 === 1 ? '#f5f5f5' : 'white';
+                    const stickyRankRow = `position:sticky;left:0;background:${rowBg};z-index:1;`;
+                    const stickyNameRow = `position:sticky;left:30px;background:${rowBg};z-index:1;`;
+                    html += `<tr style="background:${rowBg};">`;
+                    html += `<td style="${cell}${stickyRankRow}text-align:right;">${p.displayRank}</td>`;
+                    html += `<td style="${cell}${stickyNameRow}white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${p.name}${p.tieDecided ? '<sup style="color:#d32f2f;">*</sup>' : ''}</td>`;
+                    dates.forEach(d => {
+                        const v = p.byDate[d.iso];
+                        if (v != null) {
+                            const isMissing = p.missing.has(d.iso);
+                            const isDropped = p.dropped.has(d.iso);
+                            const isNegative = v < 0;
+                            const isSingle = p.single.has(d.iso);
+                            let style = '';
+                            if (isNegative) style += 'color:white;background:#d32f2f;';
+                            else if (isSingle) style += 'background:#fff9c4;';
+                            if (isMissing && !isNegative) style += 'color:#d32f2f;';
+                            if (isDropped) style += 'text-decoration:line-through;opacity:0.45;';
+                            else style += 'font-weight:bold;';
+                            html += `<td style="${cell}text-align:right;width:26px;min-width:26px;max-width:26px;${style}">${v}</td>`;
+                        } else {
+                            html += `<td style="${cell}text-align:right;color:#bbb;width:26px;min-width:26px;max-width:26px;">-</td>`;
+                        }
+                    });
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;width:52px;min-width:52px;max-width:52px;">${p.total}</td>`;
+                    const streichStr = p.streich.length ? p.streich.join(', ') : '-';
+                    html += `<td style="${cell}text-align:right;background:#fff3e0;color:#666;width:52px;min-width:52px;max-width:52px;word-break:break-word;">${streichStr}</td>`;
+                    const formCell = p.form == null
+                        ? '-'
+                        : `<span style="display:inline-block;width:40px;text-align:right;">${p.formNum}</span><span style="display:inline-block;width:26px;text-align:left;padding-left:4px;box-sizing:border-box;font-weight:normal;color:#555;">${p.formRankStr}</span>`;
+                    html += `<td style="${cell}text-align:right;background:#e8f5e9;font-weight:bold;width:72px;min-width:72px;max-width:72px;white-space:nowrap;">${formCell}</td>`;
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+                html += '<div style="margin:8px 4px 0;font-size:11px;color:#555;font-family:Arial,sans-serif;line-height:1.5;">';
+                html += '<div><span style="color:#d32f2f;">*</span> negative Tagesergebnisse zählen immer für die Jahreswertung (kein Streichergebnis)</div>';
+                if (tieNotes.length) {
+                    html += '<div style="margin-top:4px;"><span style="color:#d32f2f;">*</span> Bei Punktgleichstand entscheidet das höchste Tagesergebnis, bei erneutem Gleichstand das zweithöchste usw.</div>';
+                    tieNotes.forEach(n => { html += `<div style="margin-left:12px;">${n}</div>`; });
+                }
+                html += '</div>';
+                content.innerHTML = html;
+                fitGesamtlisteToViewport();
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${(err && err.message) ? err.message : err}</p>`;
+            }
+        };
+
+        function getSpieltagDates() {
+            const dates = [];
+            const start = new Date(Date.UTC(2026, 0, 13));
+            for (let i = 0; i < 24; i++) {
+                const d = new Date(start);
+                d.setUTCDate(d.getUTCDate() + i * 14);
+                const iso = d.toISOString().slice(0, 10);
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const yyyy = d.getUTCFullYear();
+                dates.push({ iso, label: `${dd}.${mm}`, dd, mm, yyyy: String(yyyy) });
+            }
+            // Zusatztermine am Ende – bewusst nach den 24 regulären Spieltagen,
+            // damit die reguläre Spieltag-Nummerierung (1–24) erhalten bleibt.
+            EXTRA_SPIELTAGE.forEach(ex => {
+                dates.push({ iso: ex.iso, label: ex.label, dd: ex.dd, mm: ex.mm, yyyy: ex.yyyy, name: ex.name, extra: true });
+            });
+            return dates;
+        }
+
+        async function loadAllPlayersAndResults(dates) {
+            const allNames = new Set();
+            const members = new Set();
+            const playerData = {};
+            const datesWithData = new Set();
+            try {
+                const listeSnap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                if (listeSnap.exists()) {
+                    const arr = listeSnap.data().Mitspieler || [];
+                    arr.forEach(entry => {
+                        if (!entry) return;
+                        const name = (typeof entry === 'string')
+                            ? entry.trim()
+                            : (entry.name || '').trim();
+                        if (!name) return;
+                        allNames.add(name);
+                        if (typeof entry === 'object' && entry.mitglied === true) {
+                            members.add(name);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn('mitspieler/Liste konnte nicht geladen werden:', e);
+            }
+            const datesIso = new Set(dates.map(d => d.iso));
+            const snap = await getDocs(collection(db, 'spieltage'));
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                const datum = data.datum;
+                if (!datesIso.has(datum)) return;
+                const serie = String(data.serie);
+                (data.spieler || []).forEach(s => {
+                    if (!s || !s.name) return;
+                    const val = parseFloat(s.gesamtpunkte);
+                    if (Number.isNaN(val)) return;
+                    allNames.add(s.name);
+                    datesWithData.add(datum);
+                    if (!playerData[s.name]) playerData[s.name] = {};
+                    if (!playerData[s.name][datum]) playerData[s.name][datum] = {};
+                    playerData[s.name][datum][serie] = val;
+                });
+            });
+            return { allNames, members, playerData, datesWithData };
+        }
+
+        function isoToDeDateFull(iso) {
+            if (!iso) return '';
+            const [y, m, d] = iso.split('-');
+            return `${d}.${m}.${y}`;
+        }
+
+        const MONAT_NAMEN = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+        function pickDefaultSpieltagIndex(dates) {
+            const mainSel = document.getElementById('spieltagSelect');
+            const preferredIso = mainSel && mainSel.value ? mainSel.value : '';
+            if (preferredIso) {
+                const idx = dates.findIndex(d => d.iso === preferredIso);
+                if (idx >= 0) return idx;
+            }
+            const todayIso = new Date().toISOString().slice(0, 10);
+            let lastPlayed = -1;
+            for (let i = 0; i < dates.length; i++) {
+                if (dates[i].iso <= todayIso) lastPlayed = i;
+            }
+            return lastPlayed >= 0 ? lastPlayed : 0;
+        }
+
+        function rankPlayers(players, scoreKey) {
+            players.sort((a, b) => b[scoreKey] - a[scoreKey]);
+            let currentRank = 1;
+            players.forEach((p, i) => {
+                if (i > 0 && p[scoreKey] !== players[i - 1][scoreKey]) currentRank = i + 1;
+                p.rank = currentRank;
+                p.displayRank = (i === 0 || p[scoreKey] !== players[i - 1][scoreKey]) ? currentRank : '';
+            });
+        }
+
+        window.closeTageswertung = function() {
+            closeOverlay('tageswertungModal');
+        };
+        window.closeMonatswertung = function() {
+            closeOverlay('monatswertungModal');
+        };
+
+        let tagesData = null;
+        let monatsData = null;
+
+        window.showTageswertung = async function() {
+            const content = document.getElementById('tageswertungContent');
+            const select = document.getElementById('tageswertungSelect');
+            openOverlay('tageswertungModal');
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                const dates = getSpieltagDates();
+                select.innerHTML = '';
+                dates.forEach((d, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = String(i);
+                    opt.textContent = d.extra ? `${d.name} — ${d.dd}.${d.mm}.${d.yyyy}` : `ST ${i + 1} — ${d.dd}.${d.mm}.${d.yyyy}`;
+                    select.appendChild(opt);
+                });
+                select.value = String(pickDefaultSpieltagIndex(dates));
+                const { allNames, members, playerData, datesWithData } = await loadAllPlayersAndResults(dates);
+                tagesData = { dates, allNames, members, playerData, datesWithData };
+                select.onchange = () => renderTageswertung();
+                renderTageswertung();
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${(err && err.message) ? err.message : err}</p>`;
+            }
+        };
+
+        function renderTageswertung() {
+            if (!tagesData) return;
+            const { dates, allNames, members, playerData, datesWithData } = tagesData;
+            const select = document.getElementById('tageswertungSelect');
+            const content = document.getElementById('tageswertungContent');
+            const idx = Number(select.value);
+            const date = dates[idx];
+            const stNumber = idx + 1;
+            const dayHasData = datesWithData.has(date.iso);
+
+            const players = [...allNames].map(name => {
+                const day = (playerData[name] || {})[date.iso] || {};
+                const has1 = '1' in day;
+                const has2 = '2' in day;
+                const hasEntry = has1 || has2;
+                if (!hasEntry && !members.has(name)) return null;
+                const s1 = has1 ? day['1'] : 0;
+                const s2 = has2 ? day['2'] : 750;
+                return { name, s1, s2, has1, has2, sum: s1 + s2, hasEntry };
+            }).filter(Boolean);
+            if (dayHasData) {
+                rankPlayers(players, 'sum');
+            } else {
+                players.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+                players.forEach(p => { p.rank = ''; p.displayRank = ''; });
+            }
+
+            const heading = document.getElementById('tageswertungHeading');
+            if (heading) {
+                heading.textContent = date.extra
+                    ? `${date.name} (${date.dd}.${date.mm}.${date.yyyy})`
+                    : `Tageswertung — ${stNumber}. Spieltag (${date.dd}.${date.mm}.${date.yyyy})`;
+            }
+
+            // Daten für den nativen PDF-Export bereitstellen
+            window.__tagesRender = {
+                players, dayHasData,
+                headingText: date.extra
+                    ? `${date.name} (${date.dd}.${date.mm}.${date.yyyy})`
+                    : `Tageswertung — ${stNumber}. Spieltag (${date.dd}.${date.mm}.${date.yyyy})`,
+                date, stNumber
+            };
+
+            const cell = 'padding:6px 10px;border:1px solid #ddd;';
+            const th = 'background:#f2f2f2;font-weight:bold;' + cell;
+            let html = '<div style="width:100%;margin:0 auto;">';
+            html += '<table style="border-collapse:collapse;width:100%;font-size:14px;font-family:Arial,sans-serif;"><thead><tr>';
+            html += `<th style="${th}width:50px;text-align:right;">Rang</th>`;
+            html += `<th style="${th}text-align:left;">Name</th>`;
+            html += `<th style="${th}width:90px;text-align:right;">Serie 1</th>`;
+            html += `<th style="${th}width:90px;text-align:right;">Serie 2</th>`;
+            html += `<th style="${th}width:90px;text-align:right;background:#e3f2fd;">Gesamt</th>`;
+            html += '</tr></thead><tbody>';
+            players.forEach((p, idx2) => {
+                const rowBg = idx2 % 2 === 1 ? '#f5f5f5' : 'white';
+                const cellNeg = (v, missing) => {
+                    let st = 'text-align:right;font-weight:bold;';
+                    if (v < 0) st += 'color:white;background:#d32f2f;';
+                    else if (missing) st += 'color:#d32f2f;';
+                    return st;
+                };
+                html += `<tr style="background:${rowBg};">`;
+                html += `<td style="${cell}text-align:right;">${p.displayRank}</td>`;
+                html += `<td style="${cell}">${p.name}</td>`;
+                if (!dayHasData) {
+                    html += `<td style="${cell}text-align:right;color:#bbb;">-</td>`;
+                    html += `<td style="${cell}text-align:right;color:#bbb;">-</td>`;
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;color:#bbb;">-</td>`;
+                } else {
+                    html += `<td style="${cell}${cellNeg(p.s1, !p.has1)}">${p.s1}</td>`;
+                    html += `<td style="${cell}${cellNeg(p.s2, !p.has2)}">${p.s2}</td>`;
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;">${p.sum}</td>`;
+                }
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            content.innerHTML = html;
+        }
+
+        window.showMonatswertung = async function() {
+            const content = document.getElementById('monatswertungContent');
+            const select = document.getElementById('monatswertungSelect');
+            openOverlay('monatswertungModal');
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                const dates = getSpieltagDates();
+                select.innerHTML = '';
+                dates.forEach((d, i) => {
+                    if (d.extra) return; // Zusatztermine gehören nicht in die Monatswertung
+                    const opt = document.createElement('option');
+                    opt.value = String(i);
+                    opt.textContent = `ST ${i + 1} — ${d.dd}.${d.mm}.${d.yyyy}`;
+                    select.appendChild(opt);
+                });
+                let defIdx = pickDefaultSpieltagIndex(dates);
+                if (dates[defIdx] && dates[defIdx].extra) {
+                    // auf regulären Spieltag im selben Monat ausweichen, sonst ersten regulären
+                    const sameMonth = dates.findIndex(d => !d.extra && d.mm === dates[defIdx].mm && d.yyyy === dates[defIdx].yyyy);
+                    defIdx = sameMonth >= 0 ? sameMonth : dates.findIndex(d => !d.extra);
+                }
+                select.value = String(defIdx);
+                const { allNames, members, playerData, datesWithData } = await loadAllPlayersAndResults(dates);
+                monatsData = { dates, allNames, members, playerData, datesWithData };
+                select.onchange = () => renderMonatswertung();
+                renderMonatswertung();
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${(err && err.message) ? err.message : err}</p>`;
+            }
+        };
+
+        function renderMonatswertung() {
+            if (!monatsData) return;
+            const { dates, allNames, members, playerData, datesWithData } = monatsData;
+            const select = document.getElementById('monatswertungSelect');
+            const content = document.getElementById('monatswertungContent');
+            const idx = Number(select.value);
+            const ref = dates[idx];
+            const monthDates = dates.filter(d => d.yyyy === ref.yyyy && d.mm === ref.mm && !d.extra);
+            const monatIdx = parseInt(ref.mm, 10) - 1;
+            const monatName = MONAT_NAMEN[monatIdx] || ref.mm;
+            const monthHasAnyData = monthDates.some(d => datesWithData.has(d.iso));
+
+            const players = [...allNames].map(name => {
+                const perDate = playerData[name] || {};
+                const hasAnyEntry = monthDates.some(d => perDate[d.iso]);
+                if (!hasAnyEntry && !members.has(name)) return null;
+                const dayValues = monthDates.map(d => {
+                    if (!datesWithData.has(d.iso)) return { value: 0, missing: false, empty: true };
+                    const day = perDate[d.iso];
+                    if (!day) return { value: 750, missing: true, empty: false };
+                    const has1 = '1' in day;
+                    const has2 = '2' in day;
+                    const s1 = has1 ? day['1'] : 0;
+                    const s2 = has2 ? day['2'] : 750;
+                    return { value: s1 + s2, missing: false, empty: false };
+                });
+                const total = dayValues.reduce((a, b) => a + (b.empty ? 0 : b.value), 0);
+                return { name, dayValues, total };
+            }).filter(Boolean);
+            if (monthHasAnyData) {
+                rankPlayers(players, 'total');
+            } else {
+                players.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+                players.forEach(p => { p.rank = ''; p.displayRank = ''; });
+            }
+
+            const heading = document.getElementById('monatswertungHeading');
+            if (heading) {
+                heading.textContent = `Monatswertung — ${monatName} ${ref.yyyy}`;
+            }
+
+            // Daten für den nativen PDF-Export bereitstellen
+            window.__monatsRender = {
+                players, monthDates, monthHasAnyData,
+                headingText: `Monatswertung — ${monatName} ${ref.yyyy}`,
+                monatName, ref
+            };
+
+            const cell = 'padding:6px 10px;border:1px solid #ddd;';
+            const th = 'background:#f2f2f2;font-weight:bold;' + cell;
+            let html = '<div style="width:100%;margin:0 auto;">';
+            html += '<table style="border-collapse:collapse;width:100%;font-size:14px;font-family:Arial,sans-serif;"><thead><tr>';
+            html += `<th style="${th}width:50px;text-align:right;">Rang</th>`;
+            html += `<th style="${th}text-align:left;">Name</th>`;
+            monthDates.forEach(d => {
+                html += `<th style="${th}width:100px;text-align:right;">${d.dd}.${d.mm}.${d.yyyy}</th>`;
+            });
+            html += `<th style="${th}width:90px;text-align:right;background:#e3f2fd;">Gesamt</th>`;
+            html += '</tr></thead><tbody>';
+            players.forEach((p, idx2) => {
+                const rowBg = idx2 % 2 === 1 ? '#f5f5f5' : 'white';
+                html += `<tr style="background:${rowBg};">`;
+                html += `<td style="${cell}text-align:right;">${p.displayRank}</td>`;
+                html += `<td style="${cell}">${p.name}</td>`;
+                p.dayValues.forEach(dv => {
+                    if (dv.empty) {
+                        html += `<td style="${cell}text-align:right;color:#bbb;">-</td>`;
+                        return;
+                    }
+                    let st = 'text-align:right;font-weight:bold;';
+                    if (dv.value < 0) st += 'color:white;background:#d32f2f;';
+                    else if (dv.missing) st += 'color:#d32f2f;';
+                    html += `<td style="${cell}${st}">${dv.value}</td>`;
+                });
+                if (monthHasAnyData) {
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;">${p.total}</td>`;
+                } else {
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;color:#bbb;">-</td>`;
+                }
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            content.innerHTML = html;
+        }
+
+        // Generischer nativer Portrait-Tabellen-Export (feste mm-Spaltenbreiten, echter Text, keine Bild-Skalierung).
+        // cols: [{ header, w, align:'left'|'right', headerFill?[r,g,b], fill?[r,g,b], render:(row)=>({text,color?,bold?,size?,fill?}) }]
+        async function drawNativePortraitTable(cols, rows, headingText, filename) {
+            if (!window.jspdf) { alert('PDF-Bibliothek nicht geladen — bitte Internetverbindung prüfen.'); return; }
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pageW = 210, pageH = 297, margin = 12;
+
+            // ---------- Kopf ----------
+            const clubName = '1. Sintherner Skatclub';
+            const logoData = window.SKAT_LOGO_DATA || null;
+            let logoRatio = 45 / 44;
+            if (logoData) {
+                try {
+                    const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = logoData; });
+                    logoRatio = im.naturalWidth / im.naturalHeight;
+                } catch (e) { console.warn('Logo-Maße:', e); }
+            }
+            const logoH = 10, logoW = logoH * logoRatio;
+            if (logoData) pdf.addImage(logoData, 'PNG', margin, margin, logoW, logoH);
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(14); pdf.setFont(undefined, 'bold');
+            pdf.text(clubName, margin + (logoData ? logoW + 3 : 0), margin + 7);
+            pdf.setFontSize(12);
+            pdf.text(headingText || '', pageW / 2, margin + 16, { align: 'center' });
+            pdf.setFont(undefined, 'normal');
+
+            // ---------- Layout ----------
+            const totalW = cols.reduce((s, c) => s + c.w, 0);
+            const startX = Math.max(margin, (pageW - totalW) / 2);
+            let cx = startX; cols.forEach(c => { c.x = cx; cx += c.w; });
+            const pad = 1.5;
+            const yTop = margin + 22;
+            const bottomLimit = pageH - margin;
+            const headerH = 9;
+            const rowH = Math.min(9, Math.max(4.5, (bottomLimit - yTop - headerH) / Math.max(rows.length, 1)));
+            const tableBottom = yTop + headerH + rowH * rows.length;
+
+            function cellText(str, col, rowY, h, opts) {
+                opts = opts || {};
+                if (str == null || str === '') return;
+                str = String(str);
+                pdf.setFontSize(opts.size || 9);
+                pdf.setFont(undefined, opts.bold ? 'bold' : 'normal');
+                const tc = opts.color || [0, 0, 0];
+                pdf.setTextColor(tc[0], tc[1], tc[2]);
+                const align = col.align;
+                const tx = align === 'left' ? col.x + pad : col.x + col.w - pad;
+                pdf.text(str, tx, rowY + h / 2, { align, baseline: 'middle' });
+                pdf.setTextColor(0, 0, 0);
+            }
+
+            // ---------- Kopfzeile ----------
+            pdf.setFillColor(242, 242, 242);
+            pdf.rect(startX, yTop, totalW, headerH, 'F');
+            cols.forEach(c => { if (c.headerFill) { pdf.setFillColor(c.headerFill[0], c.headerFill[1], c.headerFill[2]); pdf.rect(c.x, yTop, c.w, headerH, 'F'); } });
+            cols.forEach(c => cellText(c.header, c, yTop, headerH, { bold: true }));
+
+            // ---------- Datenzeilen ----------
+            rows.forEach((row, idx) => {
+                const rowY = yTop + headerH + idx * rowH;
+                const zebra = idx % 2 === 1 ? [245, 245, 245] : [255, 255, 255];
+                pdf.setFillColor(zebra[0], zebra[1], zebra[2]);
+                pdf.rect(startX, rowY, totalW, rowH, 'F');
+                const infos = cols.map(c => c.render ? c.render(row) : { text: '' });
+                cols.forEach((c, ci) => { if (c.fill) { pdf.setFillColor(c.fill[0], c.fill[1], c.fill[2]); pdf.rect(c.x, rowY, c.w, rowH, 'F'); } });
+                cols.forEach((c, ci) => { const inf = infos[ci]; if (inf && inf.fill) { pdf.setFillColor(inf.fill[0], inf.fill[1], inf.fill[2]); pdf.rect(c.x, rowY, c.w, rowH, 'F'); } });
+                cols.forEach((c, ci) => { const inf = infos[ci] || {}; cellText(inf.text, c, rowY, rowH, { bold: inf.bold, color: inf.color, size: inf.size }); });
+            });
+
+            // ---------- Gitterlinien ----------
+            pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.1);
+            let vx = startX;
+            pdf.line(vx, yTop, vx, tableBottom);
+            cols.forEach(c => { vx += c.w; pdf.line(vx, yTop, vx, tableBottom); });
+            for (let r = 0; r <= rows.length; r++) {
+                const yy = yTop + headerH + r * rowH;
+                pdf.line(startX, yy, startX + totalW, yy);
+            }
+
+            pdf.save(filename);
+        }
+
+        // Farbe für Serie-/Tageswerte: negativ = weiß auf rot, fehlend (Default) = rot.
+        function wertStil(v, missing) {
+            if (v < 0) return { color: [255, 255, 255], fill: [211, 47, 47] };
+            if (missing) return { color: [211, 47, 47] };
+            return {};
+        }
+
+        window.exportTageswertungPdf = function() {
+            const data = window.__tagesRender;
+            if (!data) { alert('Daten noch nicht geladen.'); return; }
+            const { players, dayHasData, headingText, date, stNumber } = data;
+            const dash = { text: '-', color: [187, 187, 187] };
+            const cols = [
+                { header: 'Rang', w: 20, align: 'right', render: p => ({ text: p.displayRank }) },
+                { header: 'Name', w: 75, align: 'left', render: p => ({ text: p.name }) },
+                { header: 'Serie 1', w: 28, align: 'right', render: p => dayHasData ? Object.assign({ text: p.s1, bold: true }, wertStil(p.s1, !p.has1)) : dash },
+                { header: 'Serie 2', w: 28, align: 'right', render: p => dayHasData ? Object.assign({ text: p.s2, bold: true }, wertStil(p.s2, !p.has2)) : dash },
+                { header: 'Gesamt', w: 28, align: 'right', headerFill: [227, 242, 253], fill: [227, 242, 253], render: p => dayHasData ? { text: p.sum, bold: true } : dash }
+            ];
+            const filename = date.extra
+                ? `Tagessieger ${date.name} - ${date.dd}.${date.mm}.${date.yyyy}.pdf`
+                : `Tagessieger ${String(stNumber).padStart(2, '0')}. Spieltag - ${date.dd}.${date.mm}.${date.yyyy}.pdf`;
+            return drawNativePortraitTable(cols, players, headingText, filename);
+        };
+
+        window.exportMonatswertungPdf = function() {
+            const data = window.__monatsRender;
+            if (!data) { alert('Daten noch nicht geladen.'); return; }
+            const { players, monthDates, monthHasAnyData, headingText, monatName } = data;
+            const dash = { text: '-', color: [187, 187, 187] };
+            const cols = [
+                { header: 'Rang', w: 18, align: 'right', render: p => ({ text: p.displayRank }) },
+                { header: 'Name', w: 60, align: 'left', render: p => ({ text: p.name }) }
+            ];
+            monthDates.forEach((d, i) => {
+                cols.push({
+                    header: `${d.dd}.${d.mm}.`, w: 26, align: 'right',
+                    render: p => {
+                        const dv = p.dayValues[i];
+                        if (!monthHasAnyData || dv.empty) return dash;
+                        return Object.assign({ text: dv.value, bold: true }, wertStil(dv.value, dv.missing));
+                    }
+                });
+            });
+            cols.push({ header: 'Gesamt', w: 26, align: 'right', headerFill: [227, 242, 253], fill: [227, 242, 253], render: p => monthHasAnyData ? { text: p.total, bold: true } : dash });
+            const filename = `Monatssieger ${monatName}.pdf`;
+            return drawNativePortraitTable(cols, players, headingText, filename);
+        };
+
+        // Excel-Sheet-Namen bereinigen: Excel verbietet : \ / ? * [ ] und max. 31 Zeichen
+        function sanitizeSheetName(name) {
+            return String(name || 'Tabelle').replace(/[:\\/?*\[\]]/g, ' ').trim().slice(0, 31) || 'Tabelle';
+        }
+        // Aktuell angezeigte Wertungstabelle als .xlsx exportieren
+        function exportWertungExcel(contentId, filename, sheetName) {
+            if (!window.XLSX) {
+                alert('Excel-Bibliothek nicht geladen — bitte Internetverbindung prüfen.');
+                return;
+            }
+            const content = document.getElementById(contentId);
+            const table = content && content.querySelector('table');
+            if (!table) { alert('Keine Tabelle vorhanden.'); return; }
+            try {
+                const wb = XLSX.utils.table_to_book(table, { sheet: sanitizeSheetName(sheetName), raw: false });
+                XLSX.writeFile(wb, filename);
+            } catch (err) {
+                console.error('Excel-Export fehlgeschlagen:', err);
+                alert('Excel-Export fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        }
+        window.exportTageswertungExcel = function() {
+            if (!tagesData) { alert('Daten noch nicht geladen.'); return; }
+            const idx = Number(document.getElementById('tageswertungSelect').value);
+            const d = tagesData.dates[idx];
+            const stNr = String(idx + 1).padStart(2, '0');
+            const filename = d.extra
+                ? `Tageswertung ${d.name} - ${d.dd}.${d.mm}.${d.yyyy}.xlsx`
+                : `Tageswertung ${stNr}. Spieltag - ${d.dd}.${d.mm}.${d.yyyy}.xlsx`;
+            const sheetName = d.extra ? `${d.dd}.${d.mm}.${d.yyyy}` : `ST ${idx + 1} ${d.dd}.${d.mm}.${d.yyyy}`;
+            exportWertungExcel('tageswertungContent', filename, sheetName);
+        };
+        window.exportMonatswertungExcel = function() {
+            if (!monatsData) { alert('Daten noch nicht geladen.'); return; }
+            const ref = monatsData.dates[Number(document.getElementById('monatswertungSelect').value)];
+            const monatName = MONAT_NAMEN[parseInt(ref.mm, 10) - 1] || ref.mm;
+            const filename = `Monatswertung ${monatName} ${ref.yyyy}.xlsx`;
+            exportWertungExcel('monatswertungContent', filename, `${monatName} ${ref.yyyy}`);
+        };
+
+        function eintrittToIsoGlobal(v) {
+            if (!v) return '';
+            if (v && typeof v.toDate === 'function') v = v.toDate();
+            if (v instanceof Date) {
+                const yyyy = v.getFullYear();
+                const mm = String(v.getMonth() + 1).padStart(2, '0');
+                const dd = String(v.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            }
+            const s = String(v).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+            const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+            if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+            return '';
+        }
+
+        function escapeHtmlAttr(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        let mitspielerVerwData = [];
+
+        // Preisskat-Teilnehmer: tolerant lesen (true, 'J'/'j'/'ja', 'y', 1).
+        function isPreisskatTrue(v) {
+            if (v === true || v === 1) return true;
+            const s = String(v == null ? '' : v).trim().toLowerCase();
+            return s === 'j' || s === 'ja' || s === 'true' || s === 'y' || s === '1' || s === 'x';
+        }
+        // Namens-Schlüssel für den Abgleich Firestore <-> Haupt-Spielerliste.
+        function preisskatNameKey(name) {
+            return String(name == null ? '' : name).trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+        // Original-Namen der Preisskat-Teilnehmer (aus Firestore). Für Abgleich/Ergänzung der Haupt-Spielerliste.
+        window.__preisskatNames = [];
+        window.__preisskatLoaded = false;
+        let __preisskatLoading = false;
+        window.loadPreisskatNames = async function() {
+            if (__preisskatLoading) return;
+            __preisskatLoading = true;
+            try {
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                const names = [];
+                if (snap.exists()) {
+                    (snap.data().Mitspieler || []).forEach(e => {
+                        if (!e || typeof e !== 'object') return;
+                        const nm = (e.name || '').trim();
+                        if (nm && isPreisskatTrue(e.preisskat)) names.push(nm);
+                    });
+                }
+                window.__preisskatNames = names;
+                window.__preisskatLoaded = true;
+                if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
+            } catch (err) {
+                // fail-open: Laden nur erneut versuchen, nicht ausblenden
+                console.warn('Preisskat-Namen konnten nicht geladen werden:', err);
+            } finally {
+                __preisskatLoading = false;
+            }
+        };
+        // Preisskat-Namen beim Start vorladen, damit die Filterung beim Wechsel sofort greift.
+        window.loadPreisskatNames();
+
+        // Alle in Firebase angelegten Mitspieler in die Auswahlliste laden (nicht-destruktiv:
+        // bereits vorhandene Spieler/Ergebnisse bleiben erhalten, nur fehlende werden ergänzt).
+        window.loadMitspielerFromFirebase = async function(btn) {
+            const origLabel = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Lade …'; }
+            try {
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                const names = [];
+                if (snap.exists()) {
+                    (snap.data().Mitspieler || []).forEach(e => {
+                        let nm = '';
+                        if (typeof e === 'string') nm = e.trim();
+                        else if (e && typeof e === 'object') nm = (e.name || '').trim();
+                        if (nm) names.push(nm);
+                    });
+                }
+                if (!names.length) {
+                    alert('Keine Mitspieler in Firebase gefunden.');
+                    return;
+                }
+                names.sort((a, b) => a.localeCompare(b, 'de'));
+                let added = 0;
+                names.forEach(nm => {
+                    const exists = allPlayers.some(p => p.toLowerCase() === nm.toLowerCase());
+                    if (!exists) { addPlayerToList(nm); added++; }
+                });
+                updateSelectedPlayers();
+                if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
+                saveState();
+                alert(`${names.length} Mitspieler in Firebase – ${added} neu in die Liste übernommen.`);
+            } catch (err) {
+                console.error('Mitspieler aus Firebase laden fehlgeschlagen:', err);
+                alert('Laden fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+            }
+        };
+
+        window.mvSet = function(i, field, value) {
+            if (mitspielerVerwData[i]) mitspielerVerwData[i][field] = value;
+        };
+
+        window.closeMitspielerVerw = function() {
+            closeOverlay('mitspielerVerwModal');
+        };
+
+        window.showMitspielerVerwaltung = async function() {
+            const content = document.getElementById('mitspielerVerwContent');
+            openOverlay('mitspielerVerwModal');
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                const arr = snap.exists() ? (snap.data().Mitspieler || []) : [];
+                mitspielerVerwData = arr.map(e => {
+                    if (typeof e === 'string') {
+                        return { name: e.trim(), eintritt: '', geburtsdatum: '', mitglied: false, preisskat: false, email: '' };
+                    }
+                    if (!e || typeof e !== 'object') return null;
+                    return {
+                        name: (e.name || '').trim(),
+                        eintritt: eintrittToIsoGlobal(e.eintritt),
+                        geburtsdatum: eintrittToIsoGlobal(e.geburtsdatum),
+                        mitglied: e.mitglied === true,
+                        preisskat: isPreisskatTrue(e.preisskat),
+                        email: (e.email || '').trim()
+                    };
+                }).filter(e => e && e.name);
+                mitspielerVerwData.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+                renderMitspielerVerw();
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${err.message || err}</p>`;
+            }
+        };
+
+        function renderMitspielerVerw() {
+            const content = document.getElementById('mitspielerVerwContent');
+            const cell = 'padding:6px 8px;border:1px solid #ddd;';
+            const th = 'background:#f2f2f2;font-weight:bold;' + cell;
+            const inputStyle = 'width:100%;border:none;background:transparent;font-size:14px;font-family:Arial,sans-serif;padding:2px 4px;box-sizing:border-box;';
+            let html = '<div style="max-width:1200px;margin:0 auto;">';
+            html += '<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:bold;padding:8px 10px;background:#e3f2fd;border-radius:4px;font-size:14px;">E-Mails einfügen &amp; zuordnen</summary>';
+            html += '<div style="padding:10px;background:#f8f8f8;border:1px solid #ddd;border-radius:4px;margin-top:4px;">';
+            html += '<p style="margin:0 0 6px;font-size:13px;color:#555;">Format: <code>Name &lt;email@adresse&gt;</code> oder nur E-Mail, getrennt durch Komma, Semikolon oder Zeilenumbruch. Nicht-zugeordnete Einträge werden im Anschluss angezeigt.</p>';
+            html += '<textarea id="emailImportText" rows="4" style="width:100%;font-family:monospace;font-size:12px;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;"></textarea>';
+            html += '<div style="margin-top:6px;text-align:right;"><button onclick="runEmailImport()" style="background:#1976d2;color:white;border:none;border-radius:4px;padding:6px 14px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;">Zuordnen</button></div>';
+            html += '<div id="emailImportResult" style="margin-top:8px;font-size:13px;"></div>';
+            html += '</div></details>';
+            html += '<table style="border-collapse:collapse;width:100%;font-size:14px;font-family:Arial,sans-serif;">';
+            html += '<thead><tr>';
+            html += `<th style="${th}text-align:left;width:220px;">Name</th>`;
+            html += `<th style="${th}text-align:left;width:140px;">Eintritt</th>`;
+            html += `<th style="${th}text-align:left;width:140px;">Geburtsdatum</th>`;
+            html += `<th style="${th}text-align:center;width:80px;">Mitglied</th>`;
+            html += `<th style="${th}text-align:center;width:90px;">Preisskat</th>`;
+            html += `<th style="${th}text-align:left;width:420px;">E-Mail</th>`;
+            html += `<th style="${th}text-align:center;width:60px;"></th>`;
+            html += '</tr></thead><tbody>';
+            mitspielerVerwData.forEach((e, i) => {
+                const rowBg = i % 2 === 1 ? '#f5f5f5' : 'white';
+                html += `<tr style="background:${rowBg};">`;
+                html += `<td style="${cell}"><input type="text" value="${escapeHtmlAttr(e.name)}" oninput="mvSet(${i},'name',this.value)" style="${inputStyle}"></td>`;
+                html += `<td style="${cell}"><input type="date" value="${escapeHtmlAttr(e.eintritt)}" oninput="mvSet(${i},'eintritt',this.value)" style="${inputStyle}"></td>`;
+                html += `<td style="${cell}"><input type="date" value="${escapeHtmlAttr(e.geburtsdatum)}" oninput="mvSet(${i},'geburtsdatum',this.value)" style="${inputStyle}"></td>`;
+                html += `<td style="${cell}text-align:center;"><input type="checkbox" ${e.mitglied ? 'checked' : ''} onchange="mvSet(${i},'mitglied',this.checked)" style="width:18px;height:18px;cursor:pointer;"></td>`;
+                html += `<td style="${cell}text-align:center;"><input type="checkbox" ${e.preisskat ? 'checked' : ''} onchange="mvSet(${i},'preisskat',this.checked)" style="width:18px;height:18px;cursor:pointer;"></td>`;
+                html += `<td style="${cell}"><input type="email" id="mvEmail_${i}" value="${escapeHtmlAttr(e.email)}" oninput="mvSet(${i},'email',this.value)" style="${inputStyle}"></td>`;
+                html += `<td style="${cell}text-align:center;"><button onclick="removeMitspielerVerw(${i})" style="background:#e53935;color:white;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:14px;line-height:1;">×</button></td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            html += '<div style="text-align:center;margin-top:14px;"><button onclick="addMitspielerVerwRow()" style="background:#388e3c;color:white;border:none;border-radius:4px;padding:8px 18px;cursor:pointer;font-size:14px;font-family:Arial,sans-serif;">+ Neuer Mitspieler</button></div>';
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        function normalizeForMatch(s) {
+            return String(s == null ? '' : s).toLowerCase()
+                .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+                .replace(/[^a-z0-9 ,.\-]/g, ' ');
+        }
+
+        function nameTokensFor(s) {
+            return normalizeForMatch(s).split(/[\s,.\-]+/).filter(t => t.length >= 2);
+        }
+
+        function parseEmailList(text) {
+            const parts = String(text || '').split(/[,;\n\r]+/).map(s => s.trim()).filter(Boolean);
+            const items = [];
+            for (const part of parts) {
+                const m = part.match(/^(.+?)\s*<\s*([^>\s]+@[^>\s]+)\s*>\s*$/);
+                if (m) {
+                    items.push({ rawName: m[1].trim(), email: m[2].trim() });
+                    continue;
+                }
+                const m2 = part.match(/([^\s<>;,]+@[^\s<>;,]+)/);
+                if (m2) {
+                    items.push({ rawName: '', email: m2[1].trim() });
+                }
+            }
+            return items;
+        }
+
+        function scoreEmailToPlayer(item, playerName) {
+            if (!playerName) return 0;
+            const pTok = nameTokensFor(playerName);
+            const localPart = normalizeForMatch((item.email.split('@')[0] || ''));
+            const localBits = localPart.split(/[\s.\-_0-9]+/).filter(t => t.length >= 2);
+            const nameTok = nameTokensFor(item.rawName);
+            let score = 0;
+            for (const t of nameTok) {
+                if (pTok.includes(t)) score += 20;
+                else if (pTok.some(p => p.length >= 3 && (p.startsWith(t) || t.startsWith(p)))) score += 8;
+            }
+            for (const p of pTok) {
+                if (p.length < 3) continue;
+                if (localBits.includes(p)) score += 12;
+                else if (localPart.includes(p)) score += 8;
+            }
+            return score;
+        }
+
+        window.runEmailImport = function() {
+            const text = (document.getElementById('emailImportText') || {}).value || '';
+            const resultEl = document.getElementById('emailImportResult');
+            const items = parseEmailList(text);
+            if (!items.length) {
+                if (resultEl) resultEl.innerHTML = '<span style="color:#d32f2f;">Keine E-Mail-Adressen erkannt.</span>';
+                return;
+            }
+            const claimed = new Set();
+            const assignments = [];
+            const unmatched = [];
+            for (const it of items) {
+                let bestIdx = -1, bestScore = 11;
+                mitspielerVerwData.forEach((p, i) => {
+                    if (claimed.has(i)) return;
+                    const s = scoreEmailToPlayer(it, p.name);
+                    if (s > bestScore) { bestScore = s; bestIdx = i; }
+                });
+                if (bestIdx >= 0) {
+                    claimed.add(bestIdx);
+                    mitspielerVerwData[bestIdx].email = it.email;
+                    const inp = document.getElementById(`mvEmail_${bestIdx}`);
+                    if (inp) {
+                        inp.value = it.email;
+                        inp.style.background = '#fff9c4';
+                    }
+                    assignments.push({ player: mitspielerVerwData[bestIdx].name, item: it, score: bestScore });
+                } else {
+                    unmatched.push(it);
+                }
+            }
+            const newResultEl = document.getElementById('emailImportResult');
+            if (newResultEl) {
+                let html = `<div style="padding:8px;background:#e8f5e9;border-radius:4px;border:1px solid #c8e6c9;"><b>${assignments.length} von ${items.length} zugeordnet.</b>`;
+                if (unmatched.length) {
+                    html += `<br><span style="color:#d32f2f;font-weight:bold;">${unmatched.length} nicht zugeordnet:</span><ul style="margin:4px 0 0 20px;padding:0;">`;
+                    unmatched.forEach(u => {
+                        const label = u.rawName ? `${u.rawName} &lt;${escapeHtmlAttr(u.email)}&gt;` : escapeHtmlAttr(u.email);
+                        html += `<li>${label}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                html += '<br><span style="font-size:12px;color:#666;">Bitte E-Mails in der Tabelle prüfen und anschließend <b>Speichern</b> klicken.</span></div>';
+                newResultEl.innerHTML = html;
+            }
+        };
+
+        window.addMitspielerVerwRow = function() {
+            mitspielerVerwData.push({ name: '', eintritt: '', geburtsdatum: '', mitglied: false, preisskat: false, email: '' });
+            renderMitspielerVerw();
+        };
+
+        // Alle Namen mit Preisskat=TRUE zeilenweise in die Zwischenablage kopieren
+        window.copyPreisskatNames = async function(btn) {
+            const names = mitspielerVerwData
+                .filter(e => e && e.preisskat && (e.name || '').trim())
+                .map(e => e.name.trim());
+            if (!names.length) {
+                alert('Kein Mitspieler mit Preisskat=Ja gefunden.');
+                return;
+            }
+            const text = names.join('\n');
+            const origLabel = btn ? btn.textContent : '';
+            const showDone = () => {
+                if (!btn) return;
+                btn.textContent = names.length + ' kopiert ✓';
+                setTimeout(() => { btn.textContent = origLabel; }, 1800);
+            };
+            try {
+                await navigator.clipboard.writeText(text);
+                showDone();
+            } catch (err) {
+                // Fallback für ältere Browser / unsichere Kontexte
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                document.body.removeChild(ta);
+                if (ok) showDone();
+                else alert('Kopieren fehlgeschlagen. Namen:\n\n' + text);
+            }
+        };
+
+        window.removeMitspielerVerw = function(idx) {
+            const e = mitspielerVerwData[idx];
+            const label = (e && e.name) ? `"${e.name}"` : 'diesen Eintrag';
+            if (!confirm(`Mitspieler ${label} entfernen?`)) return;
+            mitspielerVerwData.splice(idx, 1);
+            renderMitspielerVerw();
+        };
+
+        function showEmailProgress(text) {
+            let el = document.getElementById('emailProgressOverlay');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'emailProgressOverlay';
+                el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1976d2;color:white;padding:12px 24px;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3);';
+                document.body.appendChild(el);
+            }
+            el.textContent = text;
+        }
+        function hideEmailProgress() {
+            const el = document.getElementById('emailProgressOverlay');
+            if (el) el.remove();
+        }
+
+        window.sendSpieltagEmail = async function() {
+            const spieltagSelect = document.getElementById('spieltagSelect');
+            const spieltagIso = spieltagSelect ? spieltagSelect.value : '';
+            if (!spieltagIso) {
+                alert('Bitte zuerst einen Spieltag im Dropdown auswählen.');
+                return;
+            }
+
+            let recipients = [];
+            try {
+                const teilnehmer = new Set();
+                try {
+                    const ergSnap = await getDocs(collection(db, 'spieltage'));
+                    ergSnap.forEach(ds => {
+                        const data = ds.data();
+                        if (data.datum !== spieltagIso) return;
+                        (data.spieler || []).forEach(s => {
+                            if (s && s.name) teilnehmer.add(s.name);
+                        });
+                    });
+                } catch (e) {
+                    console.warn('spieltage konnten nicht geladen werden:', e);
+                }
+
+                const seen = new Set();
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                if (snap.exists()) {
+                    const arr = snap.data().Mitspieler || [];
+                    arr.forEach(e => {
+                        if (!e || typeof e !== 'object') return;
+                        const email = (e.email || '').trim();
+                        if (!email || !/@/.test(email)) return;
+                        const isMember = e.mitglied === true;
+                        const isTeilnehmer = teilnehmer.has((e.name || '').trim());
+                        if (!isMember && !isTeilnehmer) return;
+                        const key = email.toLowerCase();
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        recipients.push(email);
+                    });
+                }
+            } catch (err) {
+                alert('Fehler beim Laden der Mitglieder: ' + (err.message || err));
+                return;
+            }
+
+            if (!recipients.length) {
+                if (!confirm('Keine Mitglieder mit hinterlegter E-Mail-Adresse gefunden. Trotzdem fortfahren und nur die PDFs erzeugen?')) return;
+            }
+
+            const [yyyy, mm, dd] = spieltagIso.split('-');
+            const spieltagDe = `${dd}.${mm}.${yyyy}`;
+            const allDates = getSpieltagDates();
+            const spieltagIdx = allDates.findIndex(d => d.iso === spieltagIso);
+            const selDate = spieltagIdx >= 0 ? allDates[spieltagIdx] : null;
+            const isExtra = !!(selDate && selDate.extra);
+            const spieltagNr = (spieltagIdx >= 0 && !isExtra) ? (spieltagIdx + 1) : null;
+
+            try {
+                showEmailProgress('Erstelle Jahreswertung (1/3) …');
+                await window.showGesamtliste();
+                await window.exportGesamtlistePdf();
+                window.closeGesamtliste();
+
+                showEmailProgress('Erstelle Spieltagwertung (2/3) …');
+                await window.showTageswertung();
+                await window.exportTageswertungPdf();
+                window.closeTageswertung();
+
+                showEmailProgress('Erstelle Monatswertung (3/3) …');
+                await window.showMonatswertung();
+                await window.exportMonatswertungPdf();
+                window.closeMonatswertung();
+            } catch (err) {
+                hideEmailProgress();
+                alert('Fehler beim PDF-Erstellen: ' + (err.message || err));
+                return;
+            }
+            hideEmailProgress();
+
+            const subject = isExtra
+                ? `Ergebnisse ${selDate.name} - ${spieltagDe} - 1. Sintherner Skatclub`
+                : (spieltagNr
+                    ? `Ergebnisse ${spieltagNr}. Spieltag - ${spieltagDe} - 1. Sintherner Skatclub`
+                    : `Ergebnisse Spieltag ${spieltagDe} - 1. Sintherner Skatclub`);
+            const spieltagBezeichnung = isExtra ? selDate.name : (spieltagNr ? `${spieltagNr}. Spieltag` : `Spieltag ${spieltagDe}`);
+            const stNrPad = spieltagNr ? String(spieltagNr).padStart(2, '0') : '00';
+            const monatName = (allDates[spieltagIdx] && MONAT_NAMEN[parseInt(allDates[spieltagIdx].mm, 10) - 1]) || '';
+            const body = [
+                'Liebe Skatfreunde,',
+                '',
+                `anbei die Ergebnisse vom ${spieltagBezeichnung} und der aktuelle Stand der Jahreswertung.`,
+                '',
+                'VG',
+                'Frank',
+                '',
+                'Anhänge:',
+                `  • Jahreswertung_${yyyy}-${stNrPad}.pdf`,
+                isExtra
+                    ? `  • Tagessieger ${selDate.name} - ${spieltagDe}.pdf`
+                    : `  • Tagessieger ${stNrPad}. Spieltag - ${spieltagDe}.pdf`,
+                `  • Monatssieger ${monatName}.pdf`
+            ].join('\n');
+
+            const params = [];
+            if (recipients.length) params.push('bcc=' + encodeURIComponent(recipients.join(';')));
+            params.push('subject=' + encodeURIComponent(subject));
+            params.push('body=' + encodeURIComponent(body));
+            const mailto = 'mailto:?' + params.join('&');
+
+            if (mailto.length > 4000 && recipients.length) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    try {
+                        await navigator.clipboard.writeText(recipients.join('; '));
+                        alert(`E-Mail-Liste ist zu lang für mailto: ${recipients.length} Adressen wurden in die Zwischenablage kopiert. Mail-Client öffnet sich ohne BCC — bitte einfügen.`);
+                    } catch {}
+                }
+                const fallback = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+                window.location.href = fallback;
+            } else {
+                window.location.href = mailto;
+            }
+        };
+
+        window.saveMitspielerVerw = async function() {
+            const clean = mitspielerVerwData
+                .map(e => ({
+                    name: (e.name || '').trim(),
+                    eintritt: (e.eintritt || '').trim(),
+                    geburtsdatum: (e.geburtsdatum || '').trim(),
+                    mitglied: !!e.mitglied,
+                    preisskat: !!e.preisskat,
+                    email: (e.email || '').trim()
+                }))
+                .filter(e => e.name);
+            const names = clean.map(e => e.name.toLowerCase());
+            const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+            if (dupes.length) {
+                alert('Doppelte Namen: ' + [...new Set(dupes)].join(', '));
+                return;
+            }
+            try {
+                await setDoc(doc(db, 'mitspieler', 'Liste'), { Mitspieler: clean });
+                // Preisskat-Namen-Cache aktualisieren, damit die Filterung sofort greift
+                window.__preisskatNames = clean.filter(e => e.preisskat).map(e => e.name);
+                window.__preisskatLoaded = true;
+                if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
+                alert(`${clean.length} Mitspieler gespeichert.`);
+            } catch (err) {
+                console.error(err);
+                alert('Fehler beim Speichern: ' + (err.message || err));
+            }
+        };
+
+        let importModeResolver = null;
+        function askImportMode() {
+            return new Promise(resolve => {
+                importModeResolver = resolve;
+                document.getElementById('importModeModal').style.display = 'flex';
+            });
+        }
+        window.resolveImportMode = function(mode) {
+            document.getElementById('importModeModal').style.display = 'none';
+            if (importModeResolver) {
+                const r = importModeResolver;
+                importModeResolver = null;
+                r(mode);
+            }
+        };
+        window.signOutGoogle = function() {
+            signOut(auth);
+        };
+        window.copyUid = function() {
+            const u = auth.currentUser;
+            if (!u) { alert('Nicht angemeldet.'); return; }
+            const txt = u.uid;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(txt).then(
+                    () => alert('UID in Zwischenablage:\n' + txt),
+                    () => prompt('UID (manuell kopieren):', txt)
+                );
+            } else {
+                prompt('UID (manuell kopieren):', txt);
+            }
+        };
+
+        // Setzliste/Turnierauslosung in Firestore-Collection 'turnierauslosungen' ablegen
+        window.saveTurnierauslosung = async function(payload, btn) {
+            const u = auth.currentUser;
+            if (!u) { alert('Bitte zuerst mit Google anmelden, um speichern zu können.'); return; }
+            const origLabel = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Speichere …'; }
+            try {
+                await addDoc(collection(db, 'turnierauslosungen'), {
+                    serie: payload.serie,
+                    spielerAnzahl: payload.spielerAnzahl,
+                    tischAnzahl: payload.tischAnzahl,
+                    tische: payload.tische,
+                    uid: u.uid,
+                    email: u.email || '',
+                    angemeldetAls: u.displayName || u.email || '',
+                    createdAt: serverTimestamp()
+                });
+                if (btn) {
+                    btn.textContent = 'Setzliste gespeichert ✓';
+                    setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 2000);
+                }
+            } catch (err) {
+                console.error('Setzliste speichern fehlgeschlagen:', err);
+                alert('Speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
+                if (btn) { btn.textContent = origLabel; btn.disabled = false; }
+            }
+        };
+
+        window.importFromFirestore = async function() {
+            if (!window.skatImportHelper) {
+                alert('App ist noch nicht bereit – bitte einen Moment warten und erneut klicken.');
+                return;
+            }
+            const dateInput = document.getElementById('importDate');
+            const datum = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
+            const msgEl = document.getElementById('message');
+            msgEl.textContent = `Lade aus Firestore (${datum}) …`;
+            try {
+                const q = query(collection(db, 'spieltage'), where('datum', '==', datum));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                    msgEl.textContent = '';
+                    alert('Keine Firestore-Einträge für ' + datum + ' gefunden.');
+                    return;
+                }
+                let mode = 'all';
+                if (window.skatImportHelper.hasAnyResults()) {
+                    mode = await askImportMode();
+                    if (mode === 'cancel') {
+                        msgEl.textContent = '';
+                        return;
+                    }
+                }
+                if (mode === 'all') {
+                    window.skatImportHelper.resetAll();
+                }
+                const knownPlayers = new Set(window.skatImportHelper.getPlayers());
+                let hasSerie2 = false;
+                let count = 0;
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const serie = String(data.serie);
+                    if (serie === '2') hasSerie2 = true;
+                    (data.spieler || []).forEach(s => {
+                        if (!s || !s.name) return;
+                        if (!knownPlayers.has(s.name)) {
+                            window.skatImportHelper.addPlayer(s.name, true);
+                            knownPlayers.add(s.name);
+                        }
+                        window.skatImportHelper.checkPlayer(s.name);
+                        window.skatImportHelper.setResult(s.name, serie, s.gesamtpunkte);
+                        count++;
+                    });
+                });
+                window.skatImportHelper.finalize(hasSerie2, mode);
+                msgEl.textContent = `${count} Ergebnisse aus Firestore importiert (${snap.size} Tisch-Dokumente, ${datum}).`;
+            } catch (err) {
+                console.error(err);
+                msgEl.textContent = '';
+                alert('Firestore-Import fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        };
+
+        window.saveSerieToFirestore = async function(serie) {
+            if (!window.skatImportHelper) {
+                alert('App ist noch nicht bereit – bitte einen Moment warten und erneut klicken.');
+                return;
+            }
+            if (serie !== 1 && serie !== 2) return;
+            const dateInput = document.getElementById('importDate');
+            const datum = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
+            const msgEl = document.getElementById('message');
+            const entries = window.skatImportHelper.getManualEntries(serie);
+            if (entries.length === 0) {
+                alert(`Keine manuell eingetragenen Ergebnisse für Serie ${serie} vorhanden.`);
+                return;
+            }
+            if (!confirm(`${entries.length} Eintrag/Einträge der Serie ${serie} als T0 für ${datum} in Firestore speichern?`)) {
+                return;
+            }
+            const serieStr = String(serie);
+            const tisch0Id = `${datum}_S${serieStr}_T0`;
+            msgEl.textContent = `Lade Serie ${serie} hoch …`;
+            try {
+                // Existierende Einträge ermitteln, damit nichts doppelt geschrieben wird.
+                const q = query(collection(db, 'spieltage'),
+                    where('datum', '==', datum), where('serie', '==', serieStr));
+                const snap = await getDocs(q);
+                const existing = new Set();
+                let tisch0ExistingPlayers = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    (data.spieler || []).forEach(s => { if (s && s.name) existing.add(s.name); });
+                    if (d.id === tisch0Id) tisch0ExistingPlayers = data.spieler || [];
+                });
+                const newEntries = [];
+                let skipped = 0;
+                for (const e of entries) {
+                    if (existing.has(e.name)) { skipped++; continue; }
+                    newEntries.push(e);
+                }
+                if (newEntries.length === 0) {
+                    msgEl.textContent = '';
+                    alert(`Alle ${entries.length} Einträge sind bereits in Firestore vorhanden – nichts hochgeladen.`);
+                    return;
+                }
+                const merged = [...tisch0ExistingPlayers, ...newEntries];
+                await setDoc(doc(db, 'spieltage', tisch0Id), {
+                    datum, serie: serieStr, tisch: '0',
+                    spieler: merged,
+                    spielerAnzahl: merged.length,
+                    gespeichertAm: new Date().toISOString()
+                });
+                const txt = `Serie ${serie}: ${newEntries.length} Eintrag/Einträge hochgeladen` +
+                    (skipped > 0 ? `, ${skipped} übersprungen (bereits vorhanden).` : '.');
+                msgEl.textContent = txt;
+                alert('Upload erfolgreich.\n\n' + txt);
+            } catch (err) {
+                console.error(err);
+                msgEl.textContent = '';
+                alert('Firestore-Upload fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        };
+
+        function normalizeDate(d) {
+            d = (d || '').trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+            const m = d.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+            if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+            return null;
+        }
+
+        window.uploadCsvToFirestore = async function(csvText) {
+            const msgEl = document.getElementById('message');
+            // BOM entfernen
+            if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
+            const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+            if (lines.length === 0) { alert('CSV ist leer.'); return; }
+            // Header-Erkennung: wenn erste Zeile "Datum" enthält → überspringen
+            const startIdx = /datum/i.test(lines[0]) ? 1 : 0;
+
+            const rows = [];
+            const problems = [];
+            for (let i = startIdx; i < lines.length; i++) {
+                const parts = lines[i].split(';').map(p => p.trim());
+                if (parts.length < 4) { problems.push(`Zeile ${i + 1}: zu wenige Spalten`); continue; }
+                const datum = normalizeDate(parts[0]);
+                const serie = String(parseInt(parts[1], 10));
+                const name = parts[2];
+                const punkte = parseFloat(parts[3].replace(',', '.'));
+                if (!datum) { problems.push(`Zeile ${i + 1}: Datum "${parts[0]}" ungültig`); continue; }
+                if (serie !== '1' && serie !== '2') { problems.push(`Zeile ${i + 1}: Serie "${parts[1]}" ungültig`); continue; }
+                if (!name) { problems.push(`Zeile ${i + 1}: Name fehlt`); continue; }
+                if (Number.isNaN(punkte)) { problems.push(`Zeile ${i + 1}: Punkte "${parts[3]}" ungültig`); continue; }
+                rows.push({ datum, serie, name, punkte });
+            }
+            if (rows.length === 0) {
+                alert('Keine gültigen Zeilen in der CSV gefunden.\n\n' + problems.slice(0, 10).join('\n'));
+                return;
+            }
+
+            // Gruppieren nach datum+serie
+            const groups = new Map();
+            for (const r of rows) {
+                const key = `${r.datum}||${r.serie}`;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(r);
+            }
+
+            msgEl.textContent = `Lade ${rows.length} Zeilen hoch …`;
+            let added = 0, skipped = 0;
+            try {
+                for (const [key, groupRows] of groups) {
+                    const [datum, serie] = key.split('||');
+                    const tisch0Id = `${datum}_S${serie}_T0`;
+                    const q = query(collection(db, 'spieltage'),
+                        where('datum', '==', datum), where('serie', '==', serie));
+                    const snap = await getDocs(q);
+
+                    const existing = new Set();
+                    let tisch0ExistingPlayers = [];
+                    snap.forEach(d => {
+                        const data = d.data();
+                        (data.spieler || []).forEach(s => { if (s && s.name) existing.add(s.name); });
+                        if (d.id === tisch0Id) tisch0ExistingPlayers = data.spieler || [];
+                    });
+
+                    const newEntries = [];
+                    for (const r of groupRows) {
+                        if (existing.has(r.name)) { skipped++; continue; }
+                        newEntries.push({ name: r.name, gesamtpunkte: r.punkte });
+                        existing.add(r.name);
+                    }
+                    if (newEntries.length === 0) continue;
+
+                    const merged = [...tisch0ExistingPlayers, ...newEntries];
+                    await setDoc(doc(db, 'spieltage', tisch0Id), {
+                        datum, serie, tisch: '0',
+                        spieler: merged,
+                        spielerAnzahl: merged.length,
+                        gespeichertAm: new Date().toISOString()
+                    });
+                    added += newEntries.length;
+                }
+                let txt = `${added} Spieler nachgeladen, ${skipped} übersprungen (bereits vorhanden).`;
+                if (problems.length) txt += ` ${problems.length} fehlerhafte Zeile(n) – siehe Konsole.`;
+                msgEl.textContent = txt;
+                if (problems.length) console.warn('CSV-Probleme:', problems);
+                alert('CSV-Upload erfolgreich.\n\n' + txt);
+            } catch (err) {
+                console.error(err);
+                msgEl.textContent = '';
+                alert('Firestore-Upload fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        };
+    </script>
+</body>
+</html>
